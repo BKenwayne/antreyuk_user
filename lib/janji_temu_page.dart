@@ -15,8 +15,14 @@ class _JanjiTemuPageState extends State<JanjiTemuPage> {
   final int _selectedIndex = 2; // 2 is Janji Temu
   
   int _selectedPoliIndex = 0;
-  int _selectedDate = 9;
+  DateTime _selectedDate = DateTime.now();
   int _selectedTimeDoctorIndex = 0;
+
+  String _formatDate(DateTime date) {
+    List<String> months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    List<String> days = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+    return '${days[date.weekday - 1]}, ${date.day} ${months[date.month - 1]} ${date.year}';
+  }
 
   void _onItemTapped(int index) {
     if (index == 0) {
@@ -74,10 +80,22 @@ class _JanjiTemuPageState extends State<JanjiTemuPage> {
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 20.0),
-            child: CircleAvatar(
-              radius: 18,
-              backgroundColor: Colors.teal.shade200,
-              child: const Icon(Icons.person, color: Colors.white, size: 20),
+            child: GestureDetector(
+              onTap: () {
+                Navigator.pushReplacement(
+                  context,
+                  PageRouteBuilder(
+                    pageBuilder: (context, animation1, animation2) => const ProfilePage(),
+                    transitionDuration: Duration.zero,
+                    reverseTransitionDuration: Duration.zero,
+                  ),
+                );
+              },
+              child: const CircleAvatar(
+                radius: 18,
+                backgroundColor: Color(0xFFE6F0FF),
+                backgroundImage: NetworkImage('https://i.pravatar.cc/150?img=11'),
+              ),
             ),
           )
         ],
@@ -133,7 +151,6 @@ class _JanjiTemuPageState extends State<JanjiTemuPage> {
 
             // Pilih Tanggal
             Container(
-              padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
@@ -142,100 +159,26 @@ class _JanjiTemuPageState extends State<JanjiTemuPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Pilih Tanggal',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+                  const Padding(
+                    padding: EdgeInsets.only(left: 20, top: 20, right: 20),
+                    child: Text(
+                      'Pilih Tanggal',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Icon(Icons.chevron_left, color: Colors.black54),
-                      const Text(
-                        'Oktober 2026',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                      ),
-                      const Icon(Icons.chevron_right, color: Colors.black54),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  // Days header
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _buildDayHeader('Sen'),
-                      _buildDayHeader('Sel'),
-                      _buildDayHeader('Rab'),
-                      _buildDayHeader('Kam'),
-                      _buildDayHeader('Jum'),
-                      _buildDayHeader('Sab'),
-                      _buildDayHeader('Min', isWeekend: true),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  // Simplified static calendar
-                  Table(
-                    children: [
-                      TableRow(
-                        children: [
-                          _buildDateCell(text: ''),
-                          _buildDateCell(text: ''),
-                          _buildDateCell(text: '1', isDisabled: true),
-                          _buildDateCell(text: '2', isDisabled: true),
-                          _buildDateCell(text: '3', isDisabled: true),
-                          _buildDateCell(text: '4'),
-                          _buildDateCell(text: '5', isWeekend: true),
-                        ]
-                      ),
-                      TableRow(
-                        children: [
-                          _buildDateCell(text: '6'),
-                          _buildDateCell(text: '7'),
-                          _buildDateCell(text: '8'),
-                          _buildDateCell(text: '9', isSelected: _selectedDate == 9),
-                          _buildDateCell(text: '10'),
-                          _buildDateCell(text: '11'),
-                          _buildDateCell(text: '12', isWeekend: true),
-                        ]
-                      ),
-                      TableRow(
-                        children: [
-                          _buildDateCell(text: '13'),
-                          _buildDateCell(text: '14'),
-                          _buildDateCell(text: '15'),
-                          _buildDateCell(text: '16'),
-                          _buildDateCell(text: '17'),
-                          _buildDateCell(text: '18'),
-                          _buildDateCell(text: '19', isWeekend: true),
-                        ]
-                      ),
-                      TableRow(
-                        children: [
-                          _buildDateCell(text: '20'),
-                          _buildDateCell(text: '21'),
-                          _buildDateCell(text: '22'),
-                          _buildDateCell(text: '23'),
-                          _buildDateCell(text: '24'),
-                          _buildDateCell(text: '25'),
-                          _buildDateCell(text: '26', isWeekend: true),
-                        ]
-                      ),
-                      TableRow(
-                        children: [
-                          _buildDateCell(text: '27'),
-                          _buildDateCell(text: '28'),
-                          _buildDateCell(text: '29'),
-                          _buildDateCell(text: '30'),
-                          _buildDateCell(text: '31'),
-                          _buildDateCell(text: ''),
-                          _buildDateCell(text: ''),
-                        ]
-                      ),
-                    ],
+                  CalendarDatePicker(
+                    initialDate: _selectedDate,
+                    firstDate: DateTime.now(),
+                    lastDate: DateTime.now().add(const Duration(days: 365)),
+                    onDateChanged: (DateTime newDate) {
+                      setState(() {
+                        _selectedDate = newDate;
+                      });
+                    },
                   ),
                 ],
               ),
@@ -253,9 +196,9 @@ class _JanjiTemuPageState extends State<JanjiTemuPage> {
               ),
             ),
             const SizedBox(height: 4),
-            const Text(
-              'Kamis, 9 Oktober 2026 - Poli Umum',
-              style: TextStyle(color: Colors.black54, fontSize: 13),
+            Text(
+              '${_formatDate(_selectedDate)} - ${['Poli Umum', 'Poli Anak', 'Poli Jantung'][_selectedPoliIndex]}',
+              style: const TextStyle(color: Colors.black54, fontSize: 13),
             ),
             const SizedBox(height: 16),
             
@@ -577,57 +520,4 @@ class _JanjiTemuPageState extends State<JanjiTemuPage> {
     );
   }
 
-  Widget _buildDayHeader(String day, {bool isWeekend = false}) {
-    return Center(
-      child: Text(
-        day,
-        style: TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.bold,
-          color: isWeekend ? Colors.red : Colors.black87,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDateCell({
-    required String text,
-    bool isDisabled = false,
-    bool isWeekend = false,
-    bool isSelected = false,
-  }) {
-    if (text.isEmpty) {
-      return const SizedBox(height: 40);
-    }
-
-    Color textColor = Colors.black87;
-    if (isDisabled) textColor = Colors.grey.shade400;
-    else if (isWeekend) textColor = Colors.red;
-    if (isSelected) textColor = Colors.white;
-
-    return GestureDetector(
-      onTap: isDisabled ? null : () {
-        setState(() {
-          _selectedDate = int.parse(text);
-        });
-      },
-      child: Container(
-        height: 40,
-        margin: const EdgeInsets.all(2),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF0052A3) : Colors.transparent,
-          shape: BoxShape.circle,
-        ),
-        child: Center(
-          child: Text(
-            text,
-            style: TextStyle(
-              color: textColor,
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }

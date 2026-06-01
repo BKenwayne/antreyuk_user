@@ -4,6 +4,7 @@ import 'login_page.dart';
 import 'janji_temu_page.dart';
 import 'antrean_page.dart';
 import 'riwayat_pengecekan_page.dart';
+import 'dokumen_kesehatan_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -14,6 +15,119 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> {
   final int _selectedIndex = 3; // 3 is Profil
+
+  String _nik = '3174092803XXXXXX';
+  String _phone = '+62 812-3456-7890';
+
+  void _editInfo(String title, String currentValue, Function(String) onSave) {
+    final controller = TextEditingController(text: currentValue);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Ubah $title'),
+        content: TextField(
+          controller: controller,
+          decoration: InputDecoration(
+            hintText: 'Masukkan $title baru',
+            border: const OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () {
+              if (controller.text.isNotEmpty) {
+                onSave(controller.text);
+              }
+              Navigator.pop(context);
+            },
+            child: const Text('Simpan'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _changePassword() {
+    final oldController = TextEditingController();
+    final newController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Ubah Kata Sandi'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: oldController,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'Kata Sandi Lama',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: newController,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'Kata Sandi Baru',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () {
+              if (oldController.text.isNotEmpty && newController.text.isNotEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Kata sandi berhasil diubah!')),
+                );
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('Simpan'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showHelp() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Bantuan & FAQ'),
+        content: const SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('1. Bagaimana cara mengambil antrean?', style: TextStyle(fontWeight: FontWeight.bold)),
+              Text('Pilih menu "Beranda" atau "Antrean", lalu isi form pendaftaran.'),
+              SizedBox(height: 12),
+              Text('2. Bagaimana cara membatalkan janji temu?', style: TextStyle(fontWeight: FontWeight.bold)),
+              Text('Hubungi customer service kami di cs@antreyuk.com atau hubungi nomor klinik terdekat.'),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Tutup'),
+          ),
+        ],
+      ),
+    );
+  }
 
   void _onItemTapped(int index) {
     if (index == 0) {
@@ -175,8 +289,15 @@ class _ProfilePageState extends State<ProfilePage> {
                     iconBgColor: const Color(0xFFE6F0FF),
                     iconColor: const Color(0xFF0052A3),
                     title: 'Nomor Induk Kependudukan (NIK)',
-                    value: '3174092803XXXXXX',
+                    value: _nik,
                     hasEdit: true,
+                    onTap: () {
+                      _editInfo('NIK', _nik, (newValue) {
+                        setState(() {
+                          _nik = newValue;
+                        });
+                      });
+                    },
                   ),
                   Divider(height: 1, color: Colors.grey.shade200),
                   _buildInfoRow(
@@ -184,8 +305,15 @@ class _ProfilePageState extends State<ProfilePage> {
                     iconBgColor: const Color(0xFFE6F0FF),
                     iconColor: const Color(0xFF0052A3),
                     title: 'Nomor Telepon',
-                    value: '+62 812-3456-7890',
+                    value: _phone,
                     hasEdit: true,
+                    onTap: () {
+                      _editInfo('Nomor Telepon', _phone, (newValue) {
+                        setState(() {
+                          _phone = newValue;
+                        });
+                      });
+                    },
                   ),
                 ],
               ),
@@ -236,6 +364,14 @@ class _ProfilePageState extends State<ProfilePage> {
                 title: 'Dokumen Kesehatan',
                 value: 'Resep & Hasil Lab',
                 hasChevron: true,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const DokumenKesehatanPage(),
+                    ),
+                  );
+                },
               ),
             ),
 
@@ -255,9 +391,17 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
               child: Column(
                 children: [
-                  _buildSettingsRow(icon: Icons.lock_outline, title: 'Ubah Kata Sandi'),
+                  _buildSettingsRow(
+                    icon: Icons.lock_outline,
+                    title: 'Ubah Kata Sandi',
+                    onTap: _changePassword,
+                  ),
                   Divider(height: 1, color: Colors.grey.shade200),
-                  _buildSettingsRow(icon: Icons.help_outline, title: 'Bantuan'),
+                  _buildSettingsRow(
+                    icon: Icons.help_outline,
+                    title: 'Bantuan',
+                    onTap: _showHelp,
+                  ),
                 ],
               ),
             ),
@@ -427,24 +571,29 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget _buildSettingsRow({
     required IconData icon,
     required String title,
+    VoidCallback? onTap,
   }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
-      child: Row(
-        children: [
-          Icon(icon, color: Colors.black54, size: 22),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Text(
-              title,
-              style: const TextStyle(
-                color: Colors.black87,
-                fontSize: 14,
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+        child: Row(
+          children: [
+            Icon(icon, color: Colors.black54, size: 22),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.black87,
+                  fontSize: 14,
+                ),
               ),
             ),
-          ),
-          const Icon(Icons.chevron_right, color: Colors.black54, size: 20),
-        ],
+            const Icon(Icons.chevron_right, color: Colors.black54, size: 20),
+          ],
+        ),
       ),
     );
   }

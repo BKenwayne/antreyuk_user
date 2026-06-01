@@ -4,6 +4,7 @@ import 'ambil_antrean_page.dart';
 import 'profile_page.dart';
 import 'janji_temu_page.dart';
 import 'antrean_page.dart';
+import 'riwayat_pengecekan_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -52,10 +53,18 @@ class _HomePageState extends State<HomePage> {
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 20.0),
-            child: CircleAvatar(
-              radius: 18,
-              backgroundColor: Colors.teal.shade200,
-              child: const Icon(Icons.person, color: Colors.white, size: 20),
+            child: GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const ProfilePage()),
+                );
+              },
+              child: const CircleAvatar(
+                radius: 18,
+                backgroundColor: Color(0xFFE6F0FF),
+                backgroundImage: NetworkImage('https://i.pravatar.cc/150?img=11'),
+              ),
             ),
           )
         ],
@@ -82,93 +91,104 @@ class _HomePageState extends State<HomePage> {
             ),
             const SizedBox(height: 24),
             
-            // Antrean Card
-            Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
+            GestureDetector(
+              onTap: () {
+                Navigator.pushReplacement(
+                  context,
+                  PageRouteBuilder(
+                    pageBuilder: (context, animation1, animation2) => const AntreanPage(),
+                    transitionDuration: Duration.zero,
+                    reverseTransitionDuration: Duration.zero,
                   ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  // Top part (blue)
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 24),
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF0052A3),
-                      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                );
+              },
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
                     ),
-                    child: Column(
-                      children: [
-                        const Text(
-                          'Nomor Antrean Anda',
-                          style: TextStyle(color: Colors.white, fontSize: 14),
-                        ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'A-15',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 56,
-                            fontWeight: FontWeight.w900,
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    // Top part (blue)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 24),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF0052A3),
+                        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                      ),
+                      child: Column(
+                        children: [
+                          const Text(
+                            'Nomor Antrean Anda',
+                            style: TextStyle(color: Colors.white, fontSize: 14),
                           ),
-                        ),
-                        const SizedBox(height: 12),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF0F7A3E), // green
-                            borderRadius: BorderRadius.circular(20),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'A-15',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 56,
+                              fontWeight: FontWeight.w900,
+                            ),
                           ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.notifications_active_outlined, color: Colors.white, size: 16),
-                              SizedBox(width: 8),
-                              Text(
-                                'Estimasi Waktu: 10 Menit',
-                                style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
-                              ),
-                            ],
+                          const SizedBox(height: 12),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF0F7A3E), // green
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.notifications_active_outlined, color: Colors.white, size: 16),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Estimasi Waktu: 10 Menit',
+                                  style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                  // Bottom part (white)
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 20),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
-                      border: Border.all(color: Colors.grey.shade200),
-                    ),
-                    child: Column(
-                      children: [
-                        const Text(
-                          'Sedang Dipanggil (Poli Umum)',
-                          style: TextStyle(color: Colors.black54, fontSize: 15),
-                        ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'A-12',
-                          style: TextStyle(
-                            color: Color(0xFF003B73),
-                            fontSize: 22,
-                            fontWeight: FontWeight.w900,
+                    // Bottom part (white)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 20),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
+                        border: Border.all(color: Colors.grey.shade200),
+                      ),
+                      child: Column(
+                        children: [
+                          const Text(
+                            'Sedang Dipanggil (Poli Umum)',
+                            style: TextStyle(color: Colors.black54, fontSize: 15),
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 8),
+                          const Text(
+                            'A-12',
+                            style: TextStyle(
+                              color: Color(0xFF003B73),
+                              fontSize: 22,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
             
@@ -338,12 +358,20 @@ class _HomePageState extends State<HomePage> {
                 ),
                 const SizedBox(width: 16),
                 Expanded(
-                  child: _buildActionCard(
-                    icon: Icons.assignment,
-                    iconBgColor: const Color(0xFFE6F0FF),
-                    iconColor: const Color(0xFF003B73),
-                    title: 'Riwayat Kesehatan',
-                    subtitle: 'Cek hasil\nsebelumnya',
+                  child: GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const RiwayatPengecekanPage()),
+                      );
+                    },
+                    child: _buildActionCard(
+                      icon: Icons.assignment,
+                      iconBgColor: const Color(0xFFE6F0FF),
+                      iconColor: const Color(0xFF003B73),
+                      title: 'Riwayat Kesehatan',
+                      subtitle: 'Cek hasil\nsebelumnya',
+                    ),
                   ),
                 ),
               ],

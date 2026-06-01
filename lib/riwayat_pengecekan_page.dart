@@ -74,10 +74,22 @@ class _RiwayatPengecekanPageState extends State<RiwayatPengecekanPage> {
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 20.0),
-            child: CircleAvatar(
-              radius: 16,
-              backgroundColor: const Color(0xFFE6F0FF),
-              backgroundImage: const NetworkImage('https://i.pravatar.cc/150?img=11'),
+            child: GestureDetector(
+              onTap: () {
+                Navigator.pushReplacement(
+                  context,
+                  PageRouteBuilder(
+                    pageBuilder: (context, animation1, animation2) => const ProfilePage(),
+                    transitionDuration: Duration.zero,
+                    reverseTransitionDuration: Duration.zero,
+                  ),
+                );
+              },
+              child: const CircleAvatar(
+                radius: 16,
+                backgroundColor: Color(0xFFE6F0FF),
+                backgroundImage: NetworkImage('https://i.pravatar.cc/150?img=11'),
+              ),
             ),
           )
         ],
