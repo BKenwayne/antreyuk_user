@@ -48,12 +48,29 @@ class FirebaseService {
         .snapshots();
   }
 
-  /// Stream data janji temu mendatang dari Firestore
+  /// Simpan janji temu baru
+  Future<void> saveAppointment(String uid, Map<String, dynamic> appointmentData) async {
+    // Simpan di sub-koleksi user untuk akses cepat user
+    await _firestore
+        .collection('users')
+        .doc(uid)
+        .collection('appointments')
+        .add(appointmentData);
+    
+    // Simpan di koleksi global 'appointments' agar bisa dilihat oleh admin/klinik
+    await _firestore.collection('appointments').add({
+      ...appointmentData,
+      'userId': uid,
+    });
+  }
+
+  /// Stream data janji temu mendatang dari Firestore (diurutkan dari TANGGAL TERDEKAT)
   Stream<QuerySnapshot<Map<String, dynamic>>> streamAppointments(String uid) {
     return _firestore
         .collection('users')
         .doc(uid)
         .collection('appointments')
+        .orderBy('appointment_date', descending: false) // Diubah: ascending agar yang paling dekat muncul pertama
         .snapshots();
   }
 

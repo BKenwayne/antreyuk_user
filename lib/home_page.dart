@@ -19,6 +19,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
+  int _selectedAppointmentIndex = 0; // Melacak janji temu yang dipilih di dropdown
 
   final FirebaseService _firebaseService = FirebaseService();
   String get _uid => FirebaseAuth.instance.currentUser?.uid ?? "";
@@ -313,7 +314,25 @@ class _HomePageState extends State<HomePage> {
                       builder: (context, appointmentSnapshot) {
                         if (appointmentSnapshot.hasData &&
                             appointmentSnapshot.data!.docs.isNotEmpty) {
-                          final appointmentDoc = appointmentSnapshot.data!.docs.first.data();
+                          
+                          final List<QueryDocumentSnapshot<Map<String, dynamic>>> docs = appointmentSnapshot.data!.docs.toList();
+
+                          // Sort di memori agar jadwal paling dekat muncul pertama
+                          docs.sort((a, b) {
+                            var dateA = a.data()['appointment_date'];
+                            var dateB = b.data()['appointment_date'];
+                            if (dateA is Timestamp && dateB is Timestamp) {
+                              return dateA.compareTo(dateB);
+                            }
+                            return 0;
+                          });
+
+                          // Reset index jika data berubah atau berkurang
+                          if (_selectedAppointmentIndex >= docs.length) {
+                            _selectedAppointmentIndex = 0;
+                          }
+
+                          final appointmentDoc = docs[_selectedAppointmentIndex].data();
                           final String appointmentPoli = appointmentDoc['poli']?.toString() ?? "";
                           final String appointmentDoctor = appointmentDoc['doctorName']?.toString() ?? "";
                           final String appointmentDate = appointmentDoc['date']?.toString() ?? "";
@@ -330,18 +349,62 @@ class _HomePageState extends State<HomePage> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Row(
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Icon(Icons.edit_calendar, color: Color(0xFF3E1F11)),
-                                    SizedBox(width: 8),
-                                    Text(
-                                      'Janji Temu Mendatang',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                        color: Color(0xFF3E1F11),
+                                    const Expanded(
+                                      child: Row(
+                                        children: [
+                                          Icon(Icons.edit_calendar, color: Color(0xFF3E1F11)),
+                                          SizedBox(width: 8),
+                                          Text(
+                                            'Janji Temu',
+                                            style: TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
+                                              color: Color(0xFF3E1F11),
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
+                                    // Dropdown jika ada lebih dari 1 janji temu
+                                    if (docs.length > 1)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withValues(alpha: 0.6),
+                                          borderRadius: BorderRadius.circular(12),
+                                          border: Border.all(color: const Color(0xFFC78D6B).withValues(alpha: 0.5)),
+                                        ),
+                                        child: DropdownButtonHideUnderline(
+                                          child: DropdownButton<int>(
+                                            value: _selectedAppointmentIndex,
+                                            icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF3E1F11)),
+                                            dropdownColor: const Color(0xFFFFECE0),
+                                            items: List.generate(docs.length, (index) {
+                                              final d = docs[index].data();
+                                              // Ambil tanggal singkat saja untuk dropdown item
+                                              String dateStr = d['date'].toString();
+                                              String shortDate = dateStr.contains(',') ? dateStr.split(',').last.trim() : dateStr;
+                                              return DropdownMenuItem(
+                                                value: index,
+                                                child: Text(
+                                                  "${d['poli']} ($shortDate)",
+                                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF3E1F11)),
+                                                ),
+                                              );
+                                            }),
+                                            onChanged: (val) {
+                                              if (val != null) {
+                                                setState(() {
+                                                  _selectedAppointmentIndex = val;
+                                                });
+                                              }
+                                            },
+                                          ),
+                                        ),
+                                      ),
                                   ],
                                 ),
                                 const SizedBox(height: 16),

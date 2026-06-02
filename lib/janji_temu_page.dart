@@ -71,30 +71,49 @@ class _JanjiTemuPageState extends State<JanjiTemuPage> {
 
     if (_uid.isEmpty) return;
 
-    await FirebaseFirestore.instance
-        .collection('users')
-        .doc(_uid)
-        .collection('appointments')
-        .add({
-      'poli': _selectedPoliName,
-      'doctorName': doctorName,
-      'date': _formatDate(_selectedDate),
-      'time': timeRange.split(" - ").first + " WIB",
-      'timestamp': FieldValue.serverTimestamp(),
-    });
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Berhasil membuat janji temu dengan $doctorName!"),
-          backgroundColor: Colors.green,
-        ),
+    try {
+      // Menyiapkan DateTime objek untuk sorting di Beranda
+      final timeParts = timeRange.split(" - ").first.split(":");
+      final appointmentDateTime = DateTime(
+        _selectedDate.year,
+        _selectedDate.month,
+        _selectedDate.day,
+        int.parse(timeParts[0]),
+        int.parse(timeParts[1]),
       );
 
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const HomePage()),
-      );
+      await _firebaseService.saveAppointment(_uid, {
+        'poli': _selectedPoliName,
+        'doctorName': doctorName,
+        'date': _formatDate(_selectedDate),
+        'time': timeRange.split(" - ").first + " WIB",
+        'timestamp': FieldValue.serverTimestamp(),
+        'appointment_date': Timestamp.fromDate(appointmentDateTime), // Untuk sorting
+        'status': 'Menunggu Konfirmasi',
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Berhasil membuat janji temu dengan $doctorName!"),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const HomePage()),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Gagal membuat janji temu: $e"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -113,11 +132,11 @@ class _JanjiTemuPageState extends State<JanjiTemuPage> {
           appBar: AppBar(
             backgroundColor: const Color(0xFFF8F9FA),
             elevation: 0,
-            title: Row(
+            title: const Row(
               children: [
-                const Icon(Icons.health_and_safety, color: Color(0xFF0052A3)),
-                const SizedBox(width: 8),
-                const Text(
+                Icon(Icons.health_and_safety, color: Color(0xFF0052A3)),
+                SizedBox(width: 8),
+                Text(
                   'AntreYuk',
                   style: TextStyle(
                     color: Color(0xFF003B73),
@@ -369,7 +388,7 @@ class _JanjiTemuPageState extends State<JanjiTemuPage> {
               borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.03),
+                  color: Colors.black.withValues(alpha: 0.03),
                   blurRadius: 10,
                   offset: const Offset(0, -5),
                 ),

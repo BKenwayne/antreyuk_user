@@ -165,7 +165,7 @@ class _RegisterPageState extends State<RegisterPage> {
                             _isLoading = true;
                           });
                           try {
-                            // 3. Cek apakah NIK sudah terdaftar
+                            // Cek apakah NIK sudah terdaftar
                             final existingUser = await FirebaseFirestore.instance
                                 .collection('users')
                                 .where('nik', isEqualTo: _nikController.text)
@@ -187,7 +187,9 @@ class _RegisterPageState extends State<RegisterPage> {
                                 'name': _namaController.text,
                                 'nik': _nikController.text,
                                 'phone': _hpController.text,
-                                'photo_url': null, // 2. Foto profil kosongkan saja
+                                'password': _passwordController.text, // Ditambahkan field password
+                                'photo_url': null,
+                                'createdAt': FieldValue.serverTimestamp(),
                               });
                               if (context.mounted) {
                                 Navigator.pushReplacement(
