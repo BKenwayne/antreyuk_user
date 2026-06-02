@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'services/firebase_service.dart';
 import 'login_page.dart';
 import 'home_page.dart';
 
@@ -11,6 +14,21 @@ class RegisterPage extends StatefulWidget {
 
 class _RegisterPageState extends State<RegisterPage> {
   bool _obscurePassword = true;
+  bool _isLoading = false;
+
+  final TextEditingController _namaController = TextEditingController();
+  final TextEditingController _nikController = TextEditingController();
+  final TextEditingController _hpController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
+  @override
+  void dispose() {
+    _namaController.dispose();
+    _nikController.dispose();
+    _hpController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -93,6 +111,7 @@ class _RegisterPageState extends State<RegisterPage> {
                     _buildTextField(
                       hint: 'Masukkan nama sesuai KTP',
                       prefixIcon: Icons.person_outline,
+                      controller: _namaController,
                     ),
 
                     const SizedBox(height: 16),
@@ -102,6 +121,7 @@ class _RegisterPageState extends State<RegisterPage> {
                     _buildTextField(
                       hint: '16 digit nomor KTP',
                       prefixIcon: Icons.badge_outlined,
+                      controller: _nikController,
                     ),
 
                     const SizedBox(height: 16),
@@ -111,6 +131,7 @@ class _RegisterPageState extends State<RegisterPage> {
                     _buildTextField(
                       hint: 'Contoh: 081234567890',
                       prefixIcon: Icons.phone_iphone,
+                      controller: _hpController,
                     ),
 
                     const SizedBox(height: 16),
@@ -121,6 +142,7 @@ class _RegisterPageState extends State<RegisterPage> {
                       hint: 'Minimal 8 karakter',
                       prefixIcon: Icons.lock_outline,
                       isPassword: true,
+                      controller: _passwordController,
                     ),
 
                     const SizedBox(height: 32),
@@ -129,13 +151,64 @@ class _RegisterPageState extends State<RegisterPage> {
                       width: double.infinity,
                       height: 52,
                       child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const HomePage(),
-                            ),
-                          );
+                        onPressed: _isLoading ? null : () async {
+                          if (_nikController.text.isEmpty || _passwordController.text.isEmpty || _namaController.text.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Harap lengkapi semua data')));
+                            return;
+                          }
+                          if (_nikController.text.length != 16) {
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('NIK harus 16 digit')));
+                            return;
+                          }
+
+                          setState(() {
+                            _isLoading = true;
+                          });
+                          try {
+                            // 3. Cek apakah NIK sudah terdaftar
+                            final existingUser = await FirebaseFirestore.instance
+                                .collection('users')
+                                .where('nik', isEqualTo: _nikController.text)
+                                .limit(1)
+                                .get();
+
+                            if (existingUser.docs.isNotEmpty) {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('NIK sudah pernah didaftarkan')));
+                                setState(() => _isLoading = false);
+                              }
+                              return;
+                            }
+
+                            String email = "${_nikController.text}@antreyuk.com";
+                            UserCredential cred = await FirebaseAuth.instance.createUserWithEmailAndPassword(email: email, password: _passwordController.text);
+                            if (cred.user != null) {
+                              await FirebaseService().saveUserProfile(cred.user!.uid, {
+                                'name': _namaController.text,
+                                'nik': _nikController.text,
+                                'phone': _hpController.text,
+                                'photo_url': null, // 2. Foto profil kosongkan saja
+                              });
+                              if (context.mounted) {
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const HomePage(),
+                                  ),
+                                );
+                              }
+                            }
+                          } on FirebaseAuthException catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message ?? 'Gagal mendaftar')));
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                          } finally {
+                            if (mounted) {
+                              setState(() {
+                                _isLoading = false;
+                              });
+                            }
+                          }
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF0052A3), // blue button
@@ -144,7 +217,7 @@ class _RegisterPageState extends State<RegisterPage> {
                             borderRadius: BorderRadius.circular(8),
                           ),
                         ),
-                        child: const Text(
+                        child: _isLoading ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Text(
                           'Daftar Sekarang',
                           style: TextStyle(
                             fontSize: 16,
@@ -213,8 +286,10 @@ class _RegisterPageState extends State<RegisterPage> {
     required String hint,
     required IconData prefixIcon,
     bool isPassword = false,
+    TextEditingController? controller,
   }) {
     return TextField(
+      controller: controller,
       obscureText: isPassword ? _obscurePassword : false,
       decoration: InputDecoration(
         hintText: hint,

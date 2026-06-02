@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'register_page.dart';
 import 'home_page.dart';
 import 'forgot_password_page.dart';
@@ -12,6 +13,17 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   bool _obscurePassword = true;
+  bool _isLoading = false;
+
+  final TextEditingController _nikController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
+  @override
+  void dispose() {
+    _nikController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -53,10 +65,7 @@ class _LoginPageState extends State<LoginPage> {
               // Subtitle
               const Text(
                 'Solusi Antrean Medis Cerdas',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.black54,
-                ),
+                style: TextStyle(fontSize: 16, color: Colors.black54),
               ),
               const SizedBox(height: 48),
 
@@ -82,30 +91,29 @@ class _LoginPageState extends State<LoginPage> {
                     const SizedBox(height: 8),
                     const Text(
                       'Masuk untuk memulai',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.black54,
-                      ),
+                      style: TextStyle(fontSize: 14, color: Colors.black54),
                     ),
                     const SizedBox(height: 24),
 
-                    _buildLabel('Email / Nomor HP'),
+                    _buildLabel('NIK / Nomor HP'),
                     const SizedBox(height: 8),
                     _buildTextField(
-                      hint: 'Masukkan email/nomor HP',
+                      hint: 'Masukkan NIK/nomor HP',
                       prefixIcon: Icons.person_outline,
+                      controller: _nikController,
                     ),
                     const SizedBox(height: 20),
-                    
+
                     _buildLabel('Kata Sandi'),
                     const SizedBox(height: 8),
                     _buildTextField(
                       hint: 'Masukkan kata sandi',
                       prefixIcon: Icons.lock_outline,
                       isPassword: true,
+                      controller: _passwordController,
                     ),
                     const SizedBox(height: 12),
-                    
+
                     // Lupa Kata Sandi?
                     Align(
                       alignment: Alignment.centerRight,
@@ -116,7 +124,8 @@ class _LoginPageState extends State<LoginPage> {
                             Navigator.pushReplacement(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const ForgotPasswordPage(),
+                                builder: (context) =>
+                                    const ForgotPasswordPage(),
                               ),
                             );
                           },
@@ -132,28 +141,53 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                     ),
                     const SizedBox(height: 24),
-                    
+
                     // Masuk button
                     SizedBox(
                       width: double.infinity,
                       height: 52,
                       child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const HomePage(),
-                            ),
-                          );
+                        onPressed: _isLoading ? null : () async {
+                          if (_nikController.text.isEmpty || _passwordController.text.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Harap masukkan NIK/Nomor HP dan Kata Sandi')));
+                            return;
+                          }
+                          setState(() {
+                            _isLoading = true;
+                          });
+                          try {
+                            String email = "${_nikController.text}@antreyuk.com";
+                            await FirebaseAuth.instance.signInWithEmailAndPassword(email: email, password: _passwordController.text);
+                            if (context.mounted) {
+                              Navigator.pushReplacement(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const HomePage(),
+                                ),
+                              );
+                            }
+                          } on FirebaseAuthException catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message ?? 'Gagal masuk')));
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                          } finally {
+                            if (mounted) {
+                              setState(() {
+                                _isLoading = false;
+                              });
+                            }
+                          }
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF0052A3), // blue button
+                          backgroundColor: const Color(
+                            0xFF0052A3,
+                          ), // blue button
                           elevation: 0,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
                           ),
                         ),
-                        child: const Text(
+                        child: _isLoading ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Text(
                           'Masuk',
                           style: TextStyle(
                             fontSize: 16,
@@ -167,7 +201,7 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ),
               const SizedBox(height: 32),
-              
+
               // Footer text
               Center(
                 child: MouseRegion(
@@ -221,8 +255,10 @@ class _LoginPageState extends State<LoginPage> {
     required String hint,
     required IconData prefixIcon,
     bool isPassword = false,
+    TextEditingController? controller,
   }) {
     return TextField(
+      controller: controller,
       obscureText: isPassword ? _obscurePassword : false,
       decoration: InputDecoration(
         hintText: hint,
@@ -231,7 +267,9 @@ class _LoginPageState extends State<LoginPage> {
         suffixIcon: isPassword
             ? IconButton(
                 icon: Icon(
-                  _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                  _obscurePassword
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined,
                   color: Colors.black54,
                 ),
                 onPressed: () {
