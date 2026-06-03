@@ -24,6 +24,23 @@ class _HomePageState extends State<HomePage> {
   final FirebaseService _firebaseService = FirebaseService();
   String get _uid => FirebaseAuth.instance.currentUser?.uid ?? "";
 
+  String _extractQueueKeyFromQueueNumber(String queueNumber) {
+    final match = RegExp(r'\d+').firstMatch(queueNumber);
+    if (match != null) {
+      return 'queue_${match.group(0)}';
+    }
+    return '';
+  }
+
+  String _getPoliKeyFromName(String poliName) {
+    final lower = poliName.toLowerCase();
+    if (lower.contains('gigi')) return 'poli_gigi';
+    if (lower.contains('anak')) return 'poli_anak';
+    if (lower.contains('jantung')) return 'poli_jantung';
+    if (lower.contains('kia')) return 'poli_kia';
+    if (lower.contains('mata')) return 'poli_mata';
+    return 'poli_umum';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -106,6 +123,7 @@ class _HomePageState extends State<HomePage> {
                       builder: (context, activeQueueSnapshot) {
                         bool hasQueue = false;
                         String queueNumber = "";
+                        String queueKey = "";
                         String poli = "";
                         int estimasi = 0;
 
@@ -114,6 +132,7 @@ class _HomePageState extends State<HomePage> {
                           final data = Map<dynamic, dynamic>.from(
                               activeQueueSnapshot.data!.snapshot.value as Map);
                           queueNumber = data['queue_number']?.toString() ?? "";
+                          queueKey = data['queue_key']?.toString() ?? "";
                           poli = data['poli']?.toString() ?? "";
                           estimasi = int.tryParse(data['estimasi_menit']?.toString() ?? "0") ?? 0;
                           if (queueNumber.isNotEmpty) {
@@ -131,7 +150,7 @@ class _HomePageState extends State<HomePage> {
                               border: Border.all(color: Colors.grey.shade200),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.02),
+                                  color: Colors.black.withOpacity(0.02),
                                   blurRadius: 10,
                                   offset: const Offset(0, 4),
                                 ),
@@ -177,92 +196,150 @@ class _HomePageState extends State<HomePage> {
                           );
                         }
 
-                        String dbPoliKey = "poli_umum";
-                        if (poli.toLowerCase().contains("gigi")) dbPoliKey = "poli_gigi";
-                        if (poli.toLowerCase().contains("anak")) dbPoliKey = "poli_anak";
-                        if (poli.toLowerCase().contains("jantung")) dbPoliKey = "poli_jantung";
+                        final effectiveQueueKey = queueKey.isNotEmpty
+                            ? queueKey
+                            : _extractQueueKeyFromQueueNumber(queueNumber);
 
                         return StreamBuilder<DatabaseEvent>(
-                          stream: _firebaseService.streamCurrentQueue(dbPoliKey),
-                          builder: (context, currentPoliQueueSnapshot) {
-                            String currentCalling = "-";
-                            if (currentPoliQueueSnapshot.hasData &&
-                                currentPoliQueueSnapshot.data!.snapshot.value != null) {
-                              currentCalling =
-                                  currentPoliQueueSnapshot.data!.snapshot.value.toString();
+                          stream: effectiveQueueKey.isNotEmpty
+                              ? _firebaseService.streamQueueDataByKey(effectiveQueueKey)
+                              : Stream<DatabaseEvent>.empty(),
+                          builder: (context, queueDetailSnapshot) {
+                            String queueStatus = "";
+                            if (queueDetailSnapshot.hasData &&
+                                queueDetailSnapshot.data!.snapshot.value != null) {
+                              final queueData = Map<dynamic, dynamic>.from(
+                                  queueDetailSnapshot.data!.snapshot.value as Map);
+                              queueNumber = queueData['nomorAntrean']?.toString() ?? queueNumber;
+                              poli = queueData['poliTujuan']?.toString() ?? poli;
+                              estimasi = int.tryParse(
+                                      queueData['estimasiMenit']?.toString() ??
+                                          queueData['estimasi_menit']?.toString() ??
+                                          estimasi.toString()) ??
+                                  estimasi;
+                              queueStatus = queueData['status']?.toString() ?? queueStatus;
                             }
 
-                            return GestureDetector(
-                              onTap: () {
-                                Navigator.pushReplacement(
-                                  context,
-                                  PageRouteBuilder(
-                                    pageBuilder: (context, animation1, animation2) =>
-                                        const AntreanPage(),
-                                    transitionDuration: Duration.zero,
-                                    reverseTransitionDuration: Duration.zero,
-                                  ),
-                                );
-                              },
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(16),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.05),
-                                      blurRadius: 10,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                  ],
-                                ),
-                                child: Column(
-                                  children: [
-                                    Container(
-                                      width: double.infinity,
-                                      padding: const EdgeInsets.symmetric(vertical: 24),
-                                      decoration: const BoxDecoration(
-                                        color: Color(0xFF0052A3),
-                                        borderRadius:
-                                            BorderRadius.vertical(top: Radius.circular(16)),
+                            final String dbPoliKey = _getPoliKeyFromName(poli);
+
+                            return StreamBuilder<DatabaseEvent>(
+                              stream: _firebaseService.streamCurrentQueue(dbPoliKey),
+                              builder: (context, currentPoliQueueSnapshot) {
+                                String currentCalling = "-";
+                                if (currentPoliQueueSnapshot.hasData &&
+                                    currentPoliQueueSnapshot.data!.snapshot.value != null) {
+                                  currentCalling =
+                                      currentPoliQueueSnapshot.data!.snapshot.value.toString();
+                                }
+
+                                if (currentCalling == "-" &&
+                                    queueStatus.toLowerCase().contains('dipanggil')) {
+                                  currentCalling = queueNumber;
+                                }
+
+                                Widget buildQueueCard(String currentCalling) {
+                                  return GestureDetector(
+                                    onTap: () {
+                                      Navigator.pushReplacement(
+                                        context,
+                                        PageRouteBuilder(
+                                          pageBuilder: (context, animation1, animation2) =>
+                                              const AntreanPage(),
+                                          transitionDuration: Duration.zero,
+                                          reverseTransitionDuration: Duration.zero,
+                                        ),
+                                      );
+                                    },
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(16),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withOpacity(0.05),
+                                            blurRadius: 10,
+                                            offset: const Offset(0, 4),
+                                          ),
+                                        ],
                                       ),
                                       child: Column(
                                         children: [
-                                          const Text(
-                                            'Nomor Antrean Anda',
-                                            style: TextStyle(
-                                                color: Colors.white, fontSize: 14),
-                                          ),
-                                          const SizedBox(height: 8),
-                                          Text(
-                                            queueNumber,
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 56,
-                                              fontWeight: FontWeight.w900,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 12),
                                           Container(
-                                            padding: const EdgeInsets.symmetric(
-                                                horizontal: 16, vertical: 8),
-                                            decoration: BoxDecoration(
-                                              color: const Color(0xFF0F7A3E), // green
-                                              borderRadius: BorderRadius.circular(20),
+                                            width: double.infinity,
+                                            padding: const EdgeInsets.symmetric(vertical: 24),
+                                            decoration: const BoxDecoration(
+                                              color: Color(0xFF0052A3),
+                                              borderRadius:
+                                                  BorderRadius.vertical(top: Radius.circular(16)),
                                             ),
-                                            child: Row(
-                                              mainAxisSize: MainAxisSize.min,
+                                            child: Column(
                                               children: [
-                                                const Icon(
-                                                    Icons.notifications_active_outlined,
-                                                    color: Colors.white,
-                                                    size: 16),
-                                                const SizedBox(width: 8),
+                                                const Text(
+                                                  'Nomor Antrean Anda',
+                                                  style: TextStyle(
+                                                      color: Colors.white, fontSize: 14),
+                                                ),
+                                                const SizedBox(height: 8),
                                                 Text(
-                                                  'Estimasi Waktu: $estimasi Menit',
+                                                  queueNumber,
                                                   style: const TextStyle(
-                                                      color: Colors.white,
-                                                      fontSize: 13,
-                                                      fontWeight: FontWeight.bold),
+                                                    color: Colors.white,
+                                                    fontSize: 56,
+                                                    fontWeight: FontWeight.w900,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 12),
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(
+                                                      horizontal: 16, vertical: 8),
+                                                  decoration: BoxDecoration(
+                                                    color: const Color(0xFF0F7A3E),
+                                                    borderRadius: BorderRadius.circular(20),
+                                                  ),
+                                                  child: Row(
+                                                    mainAxisSize: MainAxisSize.min,
+                                                    children: [
+                                                      const Icon(
+                                                          Icons.notifications_active_outlined,
+                                                          color: Colors.white,
+                                                          size: 16),
+                                                      const SizedBox(width: 8),
+                                                      Text(
+                                                        'Estimasi Waktu: $estimasi Menit',
+                                                        style: const TextStyle(
+                                                            color: Colors.white,
+                                                            fontSize: 13,
+                                                            fontWeight: FontWeight.bold),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          Container(
+                                            width: double.infinity,
+                                            padding: const EdgeInsets.symmetric(vertical: 20),
+                                            decoration: BoxDecoration(
+                                              color: Colors.white,
+                                              borderRadius: const BorderRadius.vertical(
+                                                  bottom: Radius.circular(16)),
+                                              border: Border.all(color: Colors.grey.shade200),
+                                            ),
+                                            child: Column(
+                                              children: [
+                                                Text(
+                                                  'Sedang Dipanggil ($poli)',
+                                                  style: const TextStyle(
+                                                      color: Colors.black54, fontSize: 15),
+                                                ),
+                                                const SizedBox(height: 8),
+                                                Text(
+                                                  currentCalling,
+                                                  style: const TextStyle(
+                                                    color: Color(0xFF003B73),
+                                                    fontSize: 22,
+                                                    fontWeight: FontWeight.w900,
+                                                  ),
                                                 ),
                                               ],
                                             ),
@@ -270,37 +347,40 @@ class _HomePageState extends State<HomePage> {
                                         ],
                                       ),
                                     ),
-                                    Container(
-                                      width: double.infinity,
-                                      padding: const EdgeInsets.symmetric(vertical: 20),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: const BorderRadius.vertical(
-                                            bottom: Radius.circular(16)),
-                                        border: Border.all(color: Colors.grey.shade200),
-                                      ),
-                                      child: Column(
-                                        children: [
-                                          Text(
-                                            'Sedang Dipanggil ($poli)',
-                                            style: const TextStyle(
-                                                color: Colors.black54, fontSize: 15),
-                                          ),
-                                          const SizedBox(height: 8),
-                                          Text(
-                                            currentCalling,
-                                            style: const TextStyle(
-                                              color: Color(0xFF003B73),
-                                              fontSize: 22,
-                                              fontWeight: FontWeight.w900,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
+                                  );
+                                }
+
+                                if (currentCalling == "-" && poli.isNotEmpty) {
+                                  return StreamBuilder<DatabaseEvent>(
+                                    stream: _firebaseService.streamAntreanByPoli(poli),
+                                    builder: (context, samePoliSnapshot) {
+                                      if (samePoliSnapshot.hasData &&
+                                          samePoliSnapshot.data!.snapshot.value != null) {
+                                        final allQueues = Map<dynamic, dynamic>.from(
+                                            samePoliSnapshot.data!.snapshot.value as Map);
+                                        for (final entry in allQueues.values) {
+                                          try {
+                                            final queue = Map<dynamic, dynamic>.from(entry as Map);
+                                            final statusValue =
+                                                queue['status']?.toString().toLowerCase() ?? "";
+                                            if (statusValue.contains('dipanggil')) {
+                                              final calledNumber =
+                                                  queue['nomorAntrean']?.toString();
+                                              if (calledNumber != null && calledNumber.isNotEmpty) {
+                                                currentCalling = calledNumber;
+                                                break;
+                                              }
+                                            }
+                                          } catch (_) {}
+                                        }
+                                      }
+                                      return buildQueueCard(currentCalling);
+                                    },
+                                  );
+                                }
+
+                                return buildQueueCard(currentCalling);
+                              },
                             );
                           },
                         );
@@ -373,9 +453,9 @@ class _HomePageState extends State<HomePage> {
                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 12),
                                         decoration: BoxDecoration(
-                                          color: Colors.white.withValues(alpha: 0.6),
+                                          color: Colors.white.withOpacity(0.6),
                                           borderRadius: BorderRadius.circular(12),
-                                          border: Border.all(color: const Color(0xFFC78D6B).withValues(alpha: 0.5)),
+                                          border: Border.all(color: const Color(0xFFC78D6B).withOpacity(0.5)),
                                         ),
                                         child: DropdownButtonHideUnderline(
                                           child: DropdownButton<int>(
@@ -514,7 +594,7 @@ class _HomePageState extends State<HomePage> {
                             Container(
                               padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.2),
+                                color: Colors.white.withOpacity(0.2),
                                 shape: BoxShape.circle,
                               ),
                               child: const Icon(Icons.post_add, color: Colors.white),
@@ -605,7 +685,7 @@ class _HomePageState extends State<HomePage> {
               borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.03),
+                  color: Colors.black.withOpacity(0.03),
                   blurRadius: 10,
                   offset: const Offset(0, -5),
                 ),

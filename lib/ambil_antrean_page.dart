@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_database/firebase_database.dart';
 import 'home_page.dart';
 import 'janji_temu_page.dart';
 import 'profile_page.dart';
@@ -98,33 +97,44 @@ class _AmbilAntreanPageState extends State<AmbilAntreanPage> {
     }
 
     String prefix = "A";
-    String dbPoliKey = "poli_umum";
+    String poliKey = "poli_umum";
     if (selectedPoli!.toLowerCase().contains("gigi")) {
       prefix = "B";
-      dbPoliKey = "poli_gigi";
+      poliKey = "poli_gigi";
     } else if (selectedPoli!.toLowerCase().contains("anak")) {
       prefix = "C";
-      dbPoliKey = "poli_anak";
+      poliKey = "poli_anak";
     } else if (selectedPoli!.toLowerCase().contains("jantung")) {
       prefix = "D";
-      dbPoliKey = "poli_jantung";
+      poliKey = "poli_jantung";
     } else if (selectedPoli!.toLowerCase().contains("kia")) {
       prefix = "E";
-      dbPoliKey = "poli_kia";
+      poliKey = "poli_kia";
     } else if (selectedPoli!.toLowerCase().contains("mata")) {
       prefix = "F";
-      dbPoliKey = "poli_mata";
+      poliKey = "poli_mata";
     }
 
     try {
-      String queueNumberStr = await _firebaseService.takeNewQueue(dbPoliKey);
+      // Ambil nomor antrean baru
+      String queueNumberStr = await _firebaseService.takeNewQueue(poliKey);
       String queueNum = "$prefix-$queueNumberStr";
 
+      // Buat entry antrean baru dengan struktur baru
+      final queueKey = await _firebaseService.createNewQueue(
+        nomorAntrean: queueNum,
+        poliTujuan: selectedPoli!,
+        namaPasien: _namaController.text,
+        noRekamMedis: _nikController.text, // Menggunakan NIK sebagai nomor rekam medis
+        keluhanAwal: _keluhanController.text,
+        estimasiMenit: 25,
+      );
+
+      // Set antrean aktif untuk user (untuk tracking realtime)
       await _firebaseService.setUserActiveQueue(_uid, {
         'queue_number': queueNum,
+        'queue_key': queueKey,
         'poli': selectedPoli,
-        'estimasi_menit': 25,
-        'status': 'Menunggu Panggilan',
       });
 
       if (mounted) {

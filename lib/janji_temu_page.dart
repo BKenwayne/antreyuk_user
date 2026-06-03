@@ -21,6 +21,7 @@ class _JanjiTemuPageState extends State<JanjiTemuPage> {
   String _selectedPoliName = "Poli Umum";
   DateTime _selectedDate = DateTime.now();
   int _selectedTimeDoctorIndex = 0;
+  String _selectedTime = '08:00';
 
   final FirebaseService _firebaseService = FirebaseService();
   String get _uid => FirebaseAuth.instance.currentUser?.uid ?? "";
@@ -63,34 +64,42 @@ class _JanjiTemuPageState extends State<JanjiTemuPage> {
   }
 
   void _submitAppointment(List<dynamic> doctors) async {
-    if (doctors.isEmpty) return;
+    if (doctors.isEmpty || _uid.isEmpty) return;
     
     final selectedDoc = doctors[_selectedTimeDoctorIndex < doctors.length ? _selectedTimeDoctorIndex : 0];
     final String doctorName = selectedDoc['name']?.toString() ?? "";
-    final String timeRange = selectedDoc['time']?.toString() ?? "";
-
-    if (_uid.isEmpty) return;
 
     try {
-      // Menyiapkan DateTime objek untuk sorting di Beranda
-      final timeParts = timeRange.split(" - ").first.split(":");
-      final appointmentDateTime = DateTime(
-        _selectedDate.year,
-        _selectedDate.month,
-        _selectedDate.day,
-        int.parse(timeParts[0]),
-        int.parse(timeParts[1]),
-      );
+      // Ambil profil user untuk mendapatkan nama dan NIK
+      final userProfile = await _firebaseService.getUserProfile(_uid);
+      if (!userProfile.exists) {
+        throw Exception('Profil user tidak ditemukan');
+      }
 
-      await _firebaseService.saveAppointment(_uid, {
-        'poli': _selectedPoliName,
-        'doctorName': doctorName,
-        'date': _formatDate(_selectedDate),
-        'time': timeRange.split(" - ").first + " WIB",
-        'timestamp': FieldValue.serverTimestamp(),
-        'appointment_date': Timestamp.fromDate(appointmentDateTime), // Untuk sorting
-        'status': 'Menunggu Konfirmasi',
-      });
+      final profileData = userProfile.data();
+      final String namaPasien = profileData?['name'] ?? "Pasien";
+      final String nik = profileData?['nik'] ?? "";
+      
+      // Format waktu untuk simpan
+      // Diasumsikan waktu dipilih dari jam kerja (misal 08:30, 09:00, dst)
+      String waktu = "08:30"; // Default
+      if (_selectedTime.isNotEmpty) {
+        waktu = _selectedTime;
+      }
+
+      // Buat janji temu dengan struktur baru
+      await _firebaseService.createAppointment(
+        uid: _uid,
+        namaPasien: namaPasien,
+        nikOrKeluhan: "NIK: $nik",
+        poli: _selectedPoliName,
+        doctorName: doctorName,
+        tanggal: _selectedDate,
+        dateLabel: _formatDate(_selectedDate),
+        waktu: waktu,
+        isEmergency: false,
+        estimasiMenit: 30,
+      );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -189,11 +198,6 @@ class _JanjiTemuPageState extends State<JanjiTemuPage> {
               }
               if (activePoliDoc == null && polis.isNotEmpty) {
                 activePoliDoc = polis[0];
-              }
-
-              List<dynamic> doctors = [];
-              if (activePoliDoc != null) {
-                doctors = activePoliDoc.data()['doctors'] as List<dynamic>? ?? [];
               }
 
               return SingleChildScrollView(
@@ -313,7 +317,7 @@ class _JanjiTemuPageState extends State<JanjiTemuPage> {
                     const SizedBox(height: 24),
 
                     const Text(
-                      'Pilih Waktu & Dokter',
+                      'Pilih Dokter',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -327,18 +331,85 @@ class _JanjiTemuPageState extends State<JanjiTemuPage> {
                     ),
                     const SizedBox(height: 16),
                     
-                    if (doctors.isEmpty)
-                      const Text("Tidak ada dokter yang tersedia untuk poli ini.")
-                    else
-                      ...List.generate(doctors.length, (index) {
-                        final doc = doctors[index];
-                        return _buildTimeDoctorCard(
-                          index: index,
-                          time: doc['time']?.split(" - ")?.first ?? "08:00",
-                          doctorName: doc['name'] ?? "",
-                          specialty: doc['specialty'] ?? "",
+                    FutureBuilder<List<Map<String, dynamic>>>(
+                      future: _firebaseService.getDoctorsByPoli(_selectedPoliName),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return const Center(child: CircularProgressIndicator());
+                        }
+
+                        if (snapshot.hasError) {
+                          return Text("Error: ${snapshot.error}");
+                        }
+
+                        List<Map<String, dynamic>> doctorsList = snapshot.data ?? [];
+                        
+                        if (doctorsList.isEmpty) {
+                          return const Text("Tidak ada dokter yang tersedia untuk poli ini.");
+                        }
+
+                        return Column(
+                          children: List.generate(doctorsList.length, (index) {
+                            final doc = doctorsList[index];
+                            return _buildDoctorCard(
+                              index: index,
+                              doctorName: doc['name'] ?? "",
+                              isSelected: _selectedTimeDoctorIndex == index,
+                              onTap: () {
+                                setState(() {
+                                  _selectedTimeDoctorIndex = index;
+                                });
+                              },
+                            );
+                          }),
                         );
-                      }),
+                      },
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    const Text(
+                      'Pilih Waktu',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Default time slots
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: ['08:00', '09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00']
+                          .map((time) {
+                        final bool isSelectedTime = _selectedTime == time;
+                        return GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _selectedTime = time;
+                            });
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: isSelectedTime ? const Color(0xFF0052A3) : Colors.white,
+                              border: Border.all(color: isSelectedTime ? const Color(0xFF0052A3) : Colors.grey.shade300),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              time,
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: isSelectedTime ? Colors.white : Colors.black87,
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
 
                     const SizedBox(height: 32),
 
@@ -346,7 +417,11 @@ class _JanjiTemuPageState extends State<JanjiTemuPage> {
                       width: double.infinity,
                       height: 52,
                       child: ElevatedButton.icon(
-                        onPressed: () => _submitAppointment(doctors),
+                        onPressed: () {
+                          _firebaseService.getDoctorsByPoli(_selectedPoliName).then((doctors) {
+                            _submitAppointment(doctors);
+                          });
+                        },
                         icon: const Icon(Icons.calendar_month, color: Colors.white, size: 20),
                         label: const Text(
                           'Buat Janji Temu',
@@ -449,25 +524,19 @@ class _JanjiTemuPageState extends State<JanjiTemuPage> {
     );
   }
 
-  Widget _buildTimeDoctorCard({
+  Widget _buildDoctorCard({
     required int index,
-    required String time,
     required String doctorName,
-    required String specialty,
-    bool isFull = false,
+    required bool isSelected,
+    required VoidCallback onTap,
   }) {
-    bool isSelected = _selectedTimeDoctorIndex == index && !isFull;
     return GestureDetector(
-      onTap: isFull ? null : () {
-        setState(() {
-          _selectedTimeDoctorIndex = index;
-        });
-      },
+      onTap: onTap,
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isFull ? Colors.grey.shade50 : Colors.white,
+          color: isSelected ? Colors.blue.shade50 : Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isSelected ? const Color(0xFF0052A3) : Colors.grey.shade300,
@@ -477,78 +546,48 @@ class _JanjiTemuPageState extends State<JanjiTemuPage> {
         child: Row(
           children: [
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              width: 48,
+              height: 48,
               decoration: BoxDecoration(
-                color: isSelected ? Colors.blue.shade50 : (isFull ? Colors.grey.shade200 : Colors.white),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: isSelected ? const Color(0xFF0052A3) : (isFull ? Colors.transparent : Colors.grey.shade300),
-                ),
+                color: isSelected ? Colors.blue.shade100 : Colors.grey.shade100,
+                shape: BoxShape.circle,
               ),
-              child: Text(
-                time,
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: isFull ? Colors.grey.shade400 : (isSelected ? const Color(0xFF0052A3) : Colors.black87),
-                ),
-              ),
+              child: const Icon(Icons.person, color: Color(0xFF0052A3)),
             ),
             const SizedBox(width: 16),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    doctorName,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                      color: isFull ? Colors.grey.shade400 : Colors.black87,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    specialty,
-                    style: TextStyle(
-                      color: isFull ? Colors.grey.shade300 : Colors.black54,
-                      fontSize: 13,
-                    ),
-                  ),
-                ],
+              child: Text(
+                doctorName,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: Colors.black87,
+                ),
               ),
             ),
-            if (isFull)
-              const Text(
-                'Penuh',
-                style: TextStyle(
-                  color: Colors.redAccent,
-                  fontSize: 13,
+            Container(
+              width: 24,
+              height: 24,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: isSelected ? const Color(0xFF0052A3) : Colors.grey.shade400,
+                  width: isSelected ? 2 : 1,
                 ),
-              )
-            else
-              Container(
-                width: 24,
-                height: 24,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: isSelected ? const Color(0xFF0052A3) : Colors.grey.shade400,
-                    width: isSelected ? 2 : 1,
-                  ),
-                ),
-                child: isSelected
-                    ? Center(
-                        child: Container(
-                          width: 12,
-                          height: 12,
-                          decoration: const BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Color(0xFF0052A3),
-                          ),
-                        ),
-                      )
-                    : null,
               ),
+              child: isSelected
+                  ? Center(
+                      child: Container(
+                        width: 12,
+                        height: 12,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Color(0xFF0052A3),
+                        ),
+                      ),
+                    )
+                  : null,
+            ),
           ],
         ),
       ),
