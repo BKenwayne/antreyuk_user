@@ -220,8 +220,8 @@ class FirebaseService {
     }
   }
 
-  /// Buat janji temu baru dengan struktur baru di /antrean_janjitemu/apt_X/
-  Future<String> createAppointment({
+  /// Buat janji temu baru di Firestore
+  Future<void> createAppointment({
     required String uid,
     required String namaPasien,
     required String nikOrKeluhan,
@@ -234,49 +234,31 @@ class FirebaseService {
     int estimasiMenit = 30,
   }) async {
     try {
-      // Ambil counter untuk appointment ID
-      final counterRef = _realtimeDb.ref('apt_counter');
-      final TransactionResult result = await counterRef.runTransaction((Object? currentData) {
-        int currentCounter = (currentData as int?) ?? 0;
-        return Transaction.success(currentCounter + 1);
-      });
-
-      if (!result.committed) {
-        throw Exception('Gagal membuat counter untuk janji temu');
-      }
-
-      final aptCounter = result.snapshot.value as int? ?? 1;
-      final aptKey = 'apt_$aptCounter';
-
-      // Konversi DateTime ke timestamp
-      final tanggalTimestamp = tanggal.millisecondsSinceEpoch ~/ 1000; // Convert to seconds
-
-      // Simpan data janji temu dengan struktur baru di Realtime Database
-      await _realtimeDb.ref('antrean_janjitemu/$aptKey').set({
+      // Simpan janji temu ke Firestore saja
+      await saveAppointment(uid, {
         'namaPasien': namaPasien,
         'nikOrKeluhan': nikOrKeluhan,
-        'poli': poli,
-        'tanggal': tanggalTimestamp,
-        'waktu': waktu,
-        'isEmergency': isEmergency,
-        'estimasiMenit': estimasiMenit,
-        'status': 'menunggu',
-      });
-
-      // Simpan janji temu juga ke Firestore agar home page bisa menampilkannya
-      await saveAppointment(uid, {
         'poli': poli,
         'doctorName': doctorName,
         'date': dateLabel,
         'time': waktu,
+        'isEmergency': isEmergency,
+        'estimasiMenit': estimasiMenit,
+        'status': 'Menunggu Konfirmasi',
         'timestamp': FieldValue.serverTimestamp(),
         'appointment_date': Timestamp.fromDate(tanggal),
-        'status': 'Menunggu Konfirmasi',
       });
-
-      return aptKey;
     } catch (e) {
       throw Exception('Error membuat janji temu: $e');
+    }
+  }
+
+  /// Hapus active queue user (digunakan ketika antrean selesai)
+  Future<void> clearActiveQueue(String uid) async {
+    try {
+      await _realtimeDb.ref('users/$uid/active_queue').remove();
+    } catch (e) {
+      throw Exception('Error menghapus active queue: $e');
     }
   }
 }

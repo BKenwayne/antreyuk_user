@@ -130,7 +130,7 @@ class _RiwayatPengecekanPageState extends State<RiwayatPengecekanPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Riwayat\nPengecekan',
+                      'Riwayat Pengecekan',
                       style: TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.w900,
@@ -140,7 +140,7 @@ class _RiwayatPengecekanPageState extends State<RiwayatPengecekanPage> {
                     ),
                     const SizedBox(height: 12),
                     const Text(
-                      'Pantau riwayat kunjungan medis dan\nhasil pemeriksaan Anda di sini.',
+                      'Pantau riwayat kunjungan medis dan hasil pemeriksaan Anda di sini.',
                       style: TextStyle(color: Colors.black54, fontSize: 14, height: 1.4),
                     ),
                     const SizedBox(height: 24),

@@ -160,6 +160,51 @@ class _AntreanPageState extends State<AntreanPage> {
                         currentCalling = queueNumber;
                       }
 
+                      // Check jika status selesai, hapus active queue
+                      if (status.toLowerCase() == 'selesai' && hasQueue) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          _firebaseService.clearActiveQueue(_uid).then((_) {
+                            if (mounted) {
+                              showDialog(
+                                context: context,
+                                barrierDismissible: false,
+                                builder: (BuildContext dialogContext) {
+                                  return AlertDialog(
+                                    title: const Row(
+                                      children: [
+                                        Icon(Icons.check_circle, color: Color(0xFF0F7A3E), size: 28),
+                                        SizedBox(width: 12),
+                                        Text('Pelayanan Selesai'),
+                                      ],
+                                    ),
+                                    content: const Text('Terima kasih telah menggunakan layanan kami. Silakan ambil antrean baru jika diperlukan.'),
+                                    actions: [
+                                      ElevatedButton(
+                                        onPressed: () {
+                                          Navigator.pop(dialogContext);
+                                          Navigator.pushReplacement(
+                                            context,
+                                            PageRouteBuilder(
+                                              pageBuilder: (c, a1, a2) => const HomePage(),
+                                              transitionDuration: Duration.zero,
+                                              reverseTransitionDuration: Duration.zero,
+                                            ),
+                                          );
+                                        },
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: const Color(0xFF0052A3),
+                                        ),
+                                        child: const Text('Kembali ke Beranda', style: TextStyle(color: Colors.white)),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              );
+                            }
+                          });
+                        });
+                      }
+
                       Widget buildBody(String currentCalling) {
                         return SingleChildScrollView(
                           padding: const EdgeInsets.all(20.0),

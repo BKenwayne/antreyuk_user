@@ -9,6 +9,7 @@ import 'antrean_page.dart';
 import 'riwayat_pengecekan_page.dart';
 import 'services/firebase_service.dart';
 import 'utils/image_helper.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -20,6 +21,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
   int _selectedAppointmentIndex = 0; // Melacak janji temu yang dipilih di dropdown
+  Offset _chatButtonOffset = const Offset(20, 520);
 
   final FirebaseService _firebaseService = FirebaseService();
   String get _uid => FirebaseAuth.instance.currentUser?.uid ?? "";
@@ -40,6 +42,19 @@ class _HomePageState extends State<HomePage> {
     if (lower.contains('kia')) return 'poli_kia';
     if (lower.contains('mata')) return 'poli_mata';
     return 'poli_umum';
+  }
+
+  Future<void> _launchWhatsApp(String userName) async {
+    final String message = 'Halo, nama saya $userName. Saya ingin memulai sesi konsultasi kesehatan dari AntreYuk.';
+    final String encodedMessage = Uri.encodeComponent(message);
+    final uri = Uri.parse('https://wa.me/6283898875093?text=$encodedMessage');
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Tidak dapat membuka WhatsApp')),
+        );
+      }
+    }
   }
 
   @override
@@ -675,6 +690,52 @@ class _HomePageState extends State<HomePage> {
                       ],
                     ),
                   ],
+                ),
+              ),
+              Positioned(
+                left: _chatButtonOffset.dx,
+                top: _chatButtonOffset.dy,
+                child: GestureDetector(
+                  onTap: () => _launchWhatsApp(userName),
+                  onPanUpdate: (details) {
+                    final screenSize = MediaQuery.of(context).size;
+                    final newX = (_chatButtonOffset.dx + details.delta.dx)
+                        .clamp(0.0, screenSize.width - 70.0);
+                    final newY = (_chatButtonOffset.dy + details.delta.dy)
+                        .clamp(0.0, screenSize.height - 140.0);
+                    setState(() {
+                      _chatButtonOffset = Offset(newX, newY);
+                    });
+                  },
+                  onPanEnd: (details) {
+                    final screenSize = MediaQuery.of(context).size;
+                    final snapX = _chatButtonOffset.dx + 35 >= screenSize.width / 2
+                        ? screenSize.width - 70.0
+                        : 0.0;
+                    setState(() {
+                      _chatButtonOffset = Offset(snapX, _chatButtonOffset.dy);
+                    });
+                  },
+                  child: Container(
+                    width: 70,
+                    height: 70,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF25D366),
+                      borderRadius: BorderRadius.circular(28),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.18),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.chat,
+                      color: Colors.white,
+                      size: 34,
+                    ),
+                  ),
                 ),
               ),
             ],

@@ -215,7 +215,7 @@ class _JanjiTemuPageState extends State<JanjiTemuPage> {
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      'Pilih poliklinik, tanggal, dan waktu\nyang sesuai untuk kunjungan Anda.',
+                      'Pilih poliklinik, tanggal, dan waktu yang sesuai untuk kunjungan Anda.',
                       style: TextStyle(color: Colors.black54, fontSize: 14, height: 1.4),
                     ),
                     const SizedBox(height: 24),
