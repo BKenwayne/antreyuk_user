@@ -169,6 +169,104 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  void _deleteAccount() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Hapus Akun'),
+        content: const SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Apakah Anda yakin ingin menghapus akun ini?',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+              SizedBox(height: 12),
+              Text(
+                'Tindakan ini tidak dapat dibatalkan. Semua data akun Anda akan dihapus secara permanen.',
+                style: TextStyle(color: Colors.black54, fontSize: 13),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              
+              // Tampilkan loading
+              if (mounted) {
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (context) => AlertDialog(
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const SizedBox(
+                          width: 50,
+                          height: 50,
+                          child: CircularProgressIndicator(),
+                        ),
+                        const SizedBox(height: 16),
+                        const Text('Menghapus akun...'),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
+              try {
+                // Hapus data dari Firestore
+                await FirebaseFirestore.instance.collection('users').doc(_uid).delete();
+                
+                // Hapus akun dari Firebase Auth
+                await FirebaseAuth.instance.currentUser?.delete();
+                
+                // Keluar dari dialog loading dan navigasi ke login
+                if (mounted) {
+                  Navigator.pop(context); // Close loading dialog
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (context) => const LoginPage()),
+                    (route) => false,
+                  );
+                  
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Akun berhasil dihapus'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  Navigator.pop(context); // Close loading dialog
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Gagal menghapus akun: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+            child: const Text(
+              'Hapus',
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _onItemTapped(int index) {
     if (index == 0) {
       Navigator.pushAndRemoveUntil(
@@ -484,6 +582,33 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
 
                 const SizedBox(height: 32),
+
+                // Hapus Akun Button
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton.icon(
+                    onPressed: _deleteAccount,
+                    icon: const Icon(Icons.delete_forever, color: Colors.white),
+                    label: const Text(
+                      'Hapus Akun',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFE53935),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 16),
 
                 // Keluar Button
                 SizedBox(

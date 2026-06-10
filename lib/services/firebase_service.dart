@@ -19,12 +19,20 @@ class FirebaseService {
   // ==========================================
 
   /// Simpan atau update data profile user di Firestore
-  Future<void> saveUserProfile(String uid, Map<String, dynamic> profileData) async {
-    await _firestore.collection('users').doc(uid).set(profileData, SetOptions(merge: true));
+  Future<void> saveUserProfile(
+    String uid,
+    Map<String, dynamic> profileData,
+  ) async {
+    await _firestore
+        .collection('users')
+        .doc(uid)
+        .set(profileData, SetOptions(merge: true));
   }
 
   /// Ambil data profile user dari Firestore
-  Future<DocumentSnapshot<Map<String, dynamic>>> getUserProfile(String uid) async {
+  Future<DocumentSnapshot<Map<String, dynamic>>> getUserProfile(
+    String uid,
+  ) async {
     return await _firestore.collection('users').doc(uid).get();
   }
 
@@ -34,12 +42,59 @@ class FirebaseService {
   }
 
   /// Ambil dokumen kesehatan milik user dari Firestore
-  Future<QuerySnapshot<Map<String, dynamic>>> getHealthDocuments(String uid) async {
-    return await _firestore.collection('users').doc(uid).collection('health_documents').get();
+  Future<QuerySnapshot<Map<String, dynamic>>> getHealthDocuments(
+    String uid,
+  ) async {
+    return await _firestore
+        .collection('users')
+        .doc(uid)
+        .collection('health_documents')
+        .get();
+  }
+
+  /// Ambil data medical_records berdasarkan patientId (queue key)
+  Future<QuerySnapshot<Map<String, dynamic>>> getMedicalRecordsByPatientId(
+    String patientId,
+  ) async {
+    return await _firestore
+        .collection('medical_records')
+        .where('patientId', isEqualTo: patientId)
+        .get();
+  }
+
+  /// Stream data medical_records berdasarkan patientId (queue key)
+  Stream<QuerySnapshot<Map<String, dynamic>>> streamMedicalRecordsByPatientId(
+    String patientId,
+  ) {
+    return _firestore
+        .collection('medical_records')
+        .where('patientId', isEqualTo: patientId)
+        .snapshots();
+  }
+
+  /// Ambil data medical_records berdasarkan nomor rekam medis user
+  Future<QuerySnapshot<Map<String, dynamic>>> getMedicalRecordsByNoRekamMedis(
+    String noRekamMedis,
+  ) async {
+    return await _firestore
+        .collection('medical_records')
+        .where('noRekamMedis', isEqualTo: noRekamMedis)
+        .get();
+  }
+
+  /// Stream data medical_records berdasarkan nomor rekam medis user
+  Stream<QuerySnapshot<Map<String, dynamic>>>
+  streamMedicalRecordsByNoRekamMedis(String noRekamMedis) {
+    return _firestore
+        .collection('medical_records')
+        .where('noRekamMedis', isEqualTo: noRekamMedis)
+        .snapshots();
   }
 
   /// Ambil riwayat pemeriksaan dari Firestore
-  Stream<QuerySnapshot<Map<String, dynamic>>> streamRiwayatPemeriksaan(String uid) {
+  Stream<QuerySnapshot<Map<String, dynamic>>> streamRiwayatPemeriksaan(
+    String uid,
+  ) {
     return _firestore
         .collection('users')
         .doc(uid)
@@ -49,14 +104,17 @@ class FirebaseService {
   }
 
   /// Simpan janji temu baru
-  Future<void> saveAppointment(String uid, Map<String, dynamic> appointmentData) async {
+  Future<void> saveAppointment(
+    String uid,
+    Map<String, dynamic> appointmentData,
+  ) async {
     // Simpan di sub-koleksi user untuk akses cepat user
     await _firestore
         .collection('users')
         .doc(uid)
         .collection('appointments')
         .add(appointmentData);
-    
+
     // Simpan di koleksi global 'appointments' agar bisa dilihat oleh admin/klinik
     await _firestore.collection('appointments').add({
       ...appointmentData,
@@ -70,13 +128,31 @@ class FirebaseService {
         .collection('users')
         .doc(uid)
         .collection('appointments')
-        .orderBy('appointment_date', descending: false) // Diubah: ascending agar yang paling dekat muncul pertama
+        .orderBy(
+          'appointment_date',
+          descending: false,
+        ) // Diubah: ascending agar yang paling dekat muncul pertama
+        .snapshots();
+  }
+
+  /// Stream janji temu user di koleksi global appointments untuk memastikan update admin ikut terbaca
+  /// (Sorting dilakukan di memory, bukan di query, untuk menghindari composite index requirement)
+  Stream<QuerySnapshot<Map<String, dynamic>>> streamUserAppointments(
+    String uid,
+  ) {
+    return _firestore
+        .collection('appointments')
+        .where('userId', isEqualTo: uid)
         .snapshots();
   }
 
   /// Cek apakah NIK sudah terdaftar
   Future<bool> isNikRegistered(String nik) async {
-    final query = await _firestore.collection('users').where('nik', isEqualTo: nik).limit(1).get();
+    final query = await _firestore
+        .collection('users')
+        .where('nik', isEqualTo: nik)
+        .limit(1)
+        .get();
     return query.docs.isNotEmpty;
   }
 
@@ -106,11 +182,18 @@ class FirebaseService {
 
   /// Stream antrean semua queue yang memiliki poliTujuan tertentu
   Stream<DatabaseEvent> streamAntreanByPoli(String poliTujuan) {
-    return _realtimeDb.ref('antrean').orderByChild('poliTujuan').equalTo(poliTujuan).onValue;
+    return _realtimeDb
+        .ref('antrean')
+        .orderByChild('poliTujuan')
+        .equalTo(poliTujuan)
+        .onValue;
   }
 
   /// Update nomor antrean yang sedang dipanggil
-  Future<void> updateCurrentQueue(String poliName, String currentQueueNumber) async {
+  Future<void> updateCurrentQueue(
+    String poliName,
+    String currentQueueNumber,
+  ) async {
     await _realtimeDb.ref('queues/$poliName').update({
       'current': currentQueueNumber,
       'last_updated': ServerValue.timestamp,
@@ -120,7 +203,9 @@ class FirebaseService {
   /// Ambil antrean baru secara berurutan
   Future<String> takeNewQueue(String poliName) async {
     final ref = _realtimeDb.ref('queues/$poliName/total_queued');
-    final TransactionResult result = await ref.runTransaction((Object? currentData) {
+    final TransactionResult result = await ref.runTransaction((
+      Object? currentData,
+    ) {
       if (currentData == null) {
         return Transaction.success(1);
       }
@@ -139,8 +224,29 @@ class FirebaseService {
   }
 
   /// Set antrean aktif untuk user (Realtime)
-  Future<void> setUserActiveQueue(String uid, Map<String, dynamic> queueData) async {
+  Future<void> setUserActiveQueue(
+    String uid,
+    Map<String, dynamic> queueData,
+  ) async {
     await _realtimeDb.ref('users/$uid/active_queue').set(queueData);
+  }
+
+  /// Generate nomor rekam medis unik seperti P-00891
+  Future<String> generateUniqueMedicalRecordNumber() async {
+    final counterRef = _realtimeDb.ref('medical_record_counter');
+    final TransactionResult result = await counterRef.runTransaction((
+      Object? currentData,
+    ) {
+      int currentCounter = (currentData as int?) ?? 0;
+      return Transaction.success(currentCounter + 1);
+    });
+
+    if (!result.committed) {
+      throw Exception('Gagal membuat nomor rekam medis unik');
+    }
+
+    final int recordCounter = result.snapshot.value as int? ?? 1;
+    return 'P-${recordCounter.toString().padLeft(5, '0')}';
   }
 
   // ==========================================
@@ -160,7 +266,9 @@ class FirebaseService {
     try {
       // Ambil counter untuk queue ID
       final counterRef = _realtimeDb.ref('queue_counter');
-      final TransactionResult result = await counterRef.runTransaction((Object? currentData) {
+      final TransactionResult result = await counterRef.runTransaction((
+        Object? currentData,
+      ) {
         int currentCounter = (currentData as int?) ?? 0;
         return Transaction.success(currentCounter + 1);
       });
@@ -208,7 +316,8 @@ class FirebaseService {
       for (var doctorEntry in allDoctors.entries) {
         final doctorData = Map<String, dynamic>.from(doctorEntry.value as Map);
         // Filter berdasarkan poli dan isActive = true
-        if (doctorData['poli'] == poliName && (doctorData['isActive'] ?? false)) {
+        if (doctorData['poli'] == poliName &&
+            (doctorData['isActive'] ?? false)) {
           doctorData['key'] = doctorEntry.key;
           filteredDoctors.add(doctorData);
         }

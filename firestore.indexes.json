@@ -1,0 +1,21 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "medical_records",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "patientId", "order": "ASCENDING" },
+        { "fieldPath": "tanggalPengecekan", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "medical_records",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "noRekamMedis", "order": "ASCENDING" },
+        { "fieldPath": "tanggalPengecekan", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

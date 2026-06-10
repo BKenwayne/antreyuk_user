@@ -7,6 +7,7 @@ import 'janji_temu_page.dart';
 import 'profile_page.dart';
 import 'ambil_antrean_page.dart';
 import 'services/firebase_service.dart';
+import 'services/audio_service.dart';
 import 'utils/image_helper.dart';
 
 class AntreanPage extends StatefulWidget {
@@ -20,6 +21,8 @@ class _AntreanPageState extends State<AntreanPage> {
   int _selectedIndex = 1; // 1 is Antrean
 
   final FirebaseService _firebaseService = FirebaseService();
+  final AudioService _audioService = AudioService();
+  final Set<String> _shownCompletedDialogQueueIds = {};
   String get _uid => FirebaseAuth.instance.currentUser?.uid ?? "";
 
   void _onItemTapped(int index) {
@@ -36,7 +39,8 @@ class _AntreanPageState extends State<AntreanPage> {
       Navigator.pushReplacement(
         context,
         PageRouteBuilder(
-          pageBuilder: (context, animation1, animation2) => const JanjiTemuPage(),
+          pageBuilder: (context, animation1, animation2) =>
+              const JanjiTemuPage(),
           transitionDuration: Duration.zero,
           reverseTransitionDuration: Duration.zero,
         ),
@@ -86,7 +90,15 @@ class _AntreanPageState extends State<AntreanPage> {
               children: [
                 Icon(Icons.health_and_safety, color: Color(0xFF0052A3)),
                 SizedBox(width: 8),
-                Text('AntreYuk', style: TextStyle(color: Color(0xFF003B73), fontWeight: FontWeight.w900, fontFamily: 'Montserrat', fontSize: 20)),
+                Text(
+                  'AntreYuk',
+                  style: TextStyle(
+                    color: Color(0xFF003B73),
+                    fontWeight: FontWeight.w900,
+                    fontFamily: 'Montserrat',
+                    fontSize: 20,
+                  ),
+                ),
               ],
             ),
             actions: [
@@ -94,11 +106,31 @@ class _AntreanPageState extends State<AntreanPage> {
                 padding: const EdgeInsets.only(right: 20.0),
                 child: GestureDetector(
                   onTap: () {
-                    Navigator.pushReplacement(context, PageRouteBuilder(pageBuilder: (c, a1, a2) => const ProfilePage(), transitionDuration: Duration.zero, reverseTransitionDuration: Duration.zero));
+                    Navigator.pushReplacement(
+                      context,
+                      PageRouteBuilder(
+                        pageBuilder: (c, a1, a2) => const ProfilePage(),
+                        transitionDuration: Duration.zero,
+                        reverseTransitionDuration: Duration.zero,
+                      ),
+                    );
                   },
-                  child: CircleAvatar(radius: 18, backgroundColor: const Color(0xFFE6F0FF), backgroundImage: userPhoto != null ? ImageHelper.getImageProvider(userPhoto) : null, child: userPhoto == null ? const Icon(Icons.person, color: Color(0xFF0052A3), size: 20) : null),
+                  child: CircleAvatar(
+                    radius: 18,
+                    backgroundColor: const Color(0xFFE6F0FF),
+                    backgroundImage: userPhoto != null
+                        ? ImageHelper.getImageProvider(userPhoto)
+                        : null,
+                    child: userPhoto == null
+                        ? const Icon(
+                            Icons.person,
+                            color: Color(0xFF0052A3),
+                            size: 20,
+                          )
+                        : null,
+                  ),
                 ),
-              )
+              ),
             ],
             automaticallyImplyLeading: false,
           ),
@@ -111,37 +143,60 @@ class _AntreanPageState extends State<AntreanPage> {
               int estimasi = 0;
               String status = "";
 
-              if (activeQueueSnapshot.hasData && activeQueueSnapshot.data!.snapshot.value != null) {
-                final data = Map<dynamic, dynamic>.from(activeQueueSnapshot.data!.snapshot.value as Map);
+              if (activeQueueSnapshot.hasData &&
+                  activeQueueSnapshot.data!.snapshot.value != null) {
+                final data = Map<dynamic, dynamic>.from(
+                  activeQueueSnapshot.data!.snapshot.value as Map,
+                );
                 queueNumber = data['queue_number']?.toString() ?? "";
                 poli = data['poli']?.toString() ?? "";
-                estimasi = int.tryParse(data['estimasi_menit']?.toString() ?? "0") ?? 0;
+                estimasi =
+                    int.tryParse(data['estimasi_menit']?.toString() ?? "0") ??
+                    0;
                 status = data['status']?.toString() ?? "";
                 if (queueNumber.isNotEmpty) hasQueue = true;
               }
 
               String derivedQueueKey = "";
-              if (activeQueueSnapshot.hasData && activeQueueSnapshot.data!.snapshot.value != null) {
+              if (activeQueueSnapshot.hasData &&
+                  activeQueueSnapshot.data!.snapshot.value != null) {
                 try {
-                  final d = Map<dynamic, dynamic>.from(activeQueueSnapshot.data!.snapshot.value as Map);
+                  final d = Map<dynamic, dynamic>.from(
+                    activeQueueSnapshot.data!.snapshot.value as Map,
+                  );
                   derivedQueueKey = d['queue_key']?.toString() ?? "";
                   poli = d['poli']?.toString() ?? poli;
                 } catch (e) {}
               }
 
-              final queueKeyToUse = derivedQueueKey.isNotEmpty ? derivedQueueKey : "";
+              final queueKeyToUse = derivedQueueKey.isNotEmpty
+                  ? derivedQueueKey
+                  : "";
               String dbPoliKey = _getPoliKeyFromName(poli);
 
               return StreamBuilder<DatabaseEvent>(
-                stream: queueKeyToUse.isNotEmpty ? _firebaseService.streamQueueDataByKey(queueKeyToUse) : Stream<DatabaseEvent>.empty(),
+                stream: queueKeyToUse.isNotEmpty
+                    ? _firebaseService.streamQueueDataByKey(queueKeyToUse)
+                    : Stream<DatabaseEvent>.empty(),
                 builder: (context, queueDetailSnapshot) {
                   String queueStatus = "";
-                  if (queueDetailSnapshot.hasData && queueDetailSnapshot.data!.snapshot.value != null) {
-                    final queueData = Map<dynamic, dynamic>.from(queueDetailSnapshot.data!.snapshot.value as Map);
-                    queueNumber = queueData['nomorAntrean']?.toString() ?? queueNumber;
+                  if (queueDetailSnapshot.hasData &&
+                      queueDetailSnapshot.data!.snapshot.value != null) {
+                    final queueData = Map<dynamic, dynamic>.from(
+                      queueDetailSnapshot.data!.snapshot.value as Map,
+                    );
+                    queueNumber =
+                        queueData['nomorAntrean']?.toString() ?? queueNumber;
                     poli = queueData['poliTujuan']?.toString() ?? poli;
-                    estimasi = int.tryParse(queueData['estimasiMenit']?.toString() ?? queueData['estimasi_menit']?.toString() ?? estimasi.toString()) ?? estimasi;
-                    queueStatus = queueData['status']?.toString() ?? queueStatus;
+                    estimasi =
+                        int.tryParse(
+                          queueData['estimasiMenit']?.toString() ??
+                              queueData['estimasi_menit']?.toString() ??
+                              estimasi.toString(),
+                        ) ??
+                        estimasi;
+                    queueStatus =
+                        queueData['status']?.toString() ?? queueStatus;
                     if (queueStatus.isNotEmpty) {
                       status = queueStatus;
                     }
@@ -152,142 +207,262 @@ class _AntreanPageState extends State<AntreanPage> {
                     stream: _firebaseService.streamCurrentQueue(dbPoliKey),
                     builder: (context, currentPoliQueueSnapshot) {
                       String currentCalling = "-";
-                      if (currentPoliQueueSnapshot.hasData && currentPoliQueueSnapshot.data!.snapshot.value != null) {
-                        currentCalling = currentPoliQueueSnapshot.data!.snapshot.value.toString();
+                      if (currentPoliQueueSnapshot.hasData &&
+                          currentPoliQueueSnapshot.data!.snapshot.value !=
+                              null) {
+                        currentCalling = currentPoliQueueSnapshot
+                            .data!
+                            .snapshot
+                            .value
+                            .toString();
                       }
 
-                      if (currentCalling == "-" && queueStatus.toLowerCase().contains('dipanggil')) {
+                      if (currentCalling == "-" &&
+                          queueStatus.toLowerCase().contains('dipanggil')) {
                         currentCalling = queueNumber;
                       }
 
-                      // Check jika status selesai, hapus active queue
-                      if (status.toLowerCase() == 'selesai' && hasQueue) {
+                      // Putar suara notifikasi sekali ketika antrean berubah menjadi dipanggil
+                      final statusLower = status.toLowerCase();
+                      final queueIdentifier = queueKeyToUse.isNotEmpty
+                          ? queueKeyToUse
+                          : queueNumber.isNotEmpty
+                              ? queueNumber
+                              : 'unknown_queue';
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (mounted) {
+                          _audioService.handleQueueStatus(queueIdentifier, statusLower);
+                        }
+                      });
+
+                      final hadQueue = hasQueue;
+                      if (statusLower.contains('selesai')) {
+                        hasQueue = false;
+                        _audioService.clearLastCalledNotification(queueIdentifier);
+                      }
+
+                      // Tampilkan dialog hanya sekali ketika status berubah menjadi 'selesai'
+                      if (statusLower == 'selesai' &&
+                          hadQueue &&
+                          !_shownCompletedDialogQueueIds.contains(queueIdentifier)) {
+                        _shownCompletedDialogQueueIds.add(queueIdentifier);
                         WidgetsBinding.instance.addPostFrameCallback((_) {
-                          _firebaseService.clearActiveQueue(_uid).then((_) {
-                            if (mounted) {
-                              showDialog(
-                                context: context,
-                                barrierDismissible: false,
-                                builder: (BuildContext dialogContext) {
-                                  return AlertDialog(
-                                    title: const Row(
-                                      children: [
-                                        Icon(Icons.check_circle, color: Color(0xFF0F7A3E), size: 28),
-                                        SizedBox(width: 12),
-                                        Text('Pelayanan Selesai'),
-                                      ],
-                                    ),
-                                    content: const Text('Terima kasih telah menggunakan layanan kami. Silakan ambil antrean baru jika diperlukan.'),
-                                    actions: [
-                                      ElevatedButton(
-                                        onPressed: () {
-                                          Navigator.pop(dialogContext);
-                                          Navigator.pushReplacement(
-                                            context,
-                                            PageRouteBuilder(
-                                              pageBuilder: (c, a1, a2) => const HomePage(),
-                                              transitionDuration: Duration.zero,
-                                              reverseTransitionDuration: Duration.zero,
-                                            ),
-                                          );
-                                        },
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: const Color(0xFF0052A3),
-                                        ),
-                                        child: const Text('Kembali ke Beranda', style: TextStyle(color: Colors.white)),
+                          if (mounted) {
+                            showDialog(
+                              context: context,
+                              barrierDismissible: false,
+                              builder: (BuildContext dialogContext) {
+                                return AlertDialog(
+                                  title: const Row(
+                                    children: [
+                                      Icon(
+                                        Icons.check_circle,
+                                        color: Color(0xFF0F7A3E),
+                                        size: 28,
                                       ),
+                                      SizedBox(width: 12),
+                                      Text('Pelayanan Selesai'),
                                     ],
-                                  );
-                                },
-                              );
-                            }
-                          });
+                                  ),
+                                  content: const Text(
+                                    'Terima kasih telah menggunakan layanan kami. Silakan ambil antrean baru jika diperlukan.',
+                                  ),
+                                  actions: [
+                                    ElevatedButton(
+                                      onPressed: () {
+                                        Navigator.pop(dialogContext);
+                                        Navigator.pushReplacement(
+                                          context,
+                                          PageRouteBuilder(
+                                            pageBuilder: (c, a1, a2) =>
+                                                const HomePage(),
+                                            transitionDuration: Duration.zero,
+                                            reverseTransitionDuration:
+                                                Duration.zero,
+                                          ),
+                                        );
+                                      },
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(
+                                          0xFF0052A3,
+                                        ),
+                                      ),
+                                      child: const Text(
+                                        'Kembali ke Beranda',
+                                        style: TextStyle(color: Colors.white),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              },
+                            );
+                          }
                         });
                       }
 
-                      Widget buildBody(String currentCalling) {
-                        return SingleChildScrollView(
+                      // Fungsi pembantu untuk membuat UI Utama (dibuat lokal di dalam builder)
+                      Widget buildBody(String currentCallingVal) {
+                        return ListView(
                           padding: const EdgeInsets.all(20.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              if (!hasQueue)
-                                _noQueueCard(context)
-                              else ...[
-                                _queueInfoCard(poli, queueNumber, status, estimasi),
-                                const SizedBox(height: 16),
-                                _activePoliCard(currentCalling, queueNumber, status),
-                              ],
-
-                              const SizedBox(height: 32),
-
-                              const Text('Poliklinik Tersedia', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
-                              StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                                stream: FirebaseFirestore.instance.collection('poliklinik').snapshots(),
-                                builder: (context, poliSnapshot) {
-                                  if (!poliSnapshot.hasData) return const Center(child: CircularProgressIndicator());
-                                  return Column(
-                                    children: poliSnapshot.data!.docs.map((doc) {
-                                      final data = doc.data();
-                                      final name = data['name']?.toString() ?? "Poliklinik";
-                                      IconData iconData = Icons.local_hospital;
-                                      if (data['icon'] == 'medical_services_outlined') iconData = Icons.medical_services_outlined;
-                                      else if (data['icon'] == 'child_care' || data['icon'] == 'child_care_outlined') iconData = Icons.child_care_outlined;
-                                      else if (data['icon'] == 'monitor_heart_outlined') iconData = Icons.monitor_heart_outlined;
-                                      else if (data['icon'] == 'visibility_outlined') iconData = Icons.visibility_outlined;
-
-                                      return StreamBuilder<DatabaseEvent>(
-                                        stream: _firebaseService.streamAntreanByPoli(name),
-                                        builder: (context, queueSnapshot) {
-                                          String currentQueue = "-";
-                                          int waitingCount = 0;
-                                          if (queueSnapshot.hasData && queueSnapshot.data!.snapshot.value != null) {
-                                            final allQueues = Map<dynamic, dynamic>.from(queueSnapshot.data!.snapshot.value as Map);
-                                            for (final entry in allQueues.values) {
-                                              try {
-                                                final queue = Map<dynamic, dynamic>.from(entry as Map);
-                                                final statusValue = queue['status']?.toString().toLowerCase() ?? "";
-                                                if (statusValue.contains('dipanggil')) {
-                                                  final calledNumber = queue['nomorAntrean']?.toString();
-                                                  if (calledNumber != null && calledNumber.isNotEmpty) {
-                                                    currentQueue = calledNumber;
-                                                    break;
-                                                  }
-                                                }
-                                              } catch (_) {}
-                                            }
-
-                                            int totalQueued = 0;
-                                            for (final entry in allQueues.values) {
-                                              try {
-                                                final queue = Map<dynamic, dynamic>.from(entry as Map);
-                                                final queueNum = queue['nomorAntrean']?.toString() ?? "";
-                                                final statusValue = queue['status']?.toString().toLowerCase() ?? "";
-                                                if (queueNum.isNotEmpty && !statusValue.contains('selesai') && !statusValue.contains('dipanggil')) {
-                                                  totalQueued += 1;
-                                                }
-                                              } catch (_) {}
-                                            }
-                                            waitingCount = totalQueued;
-                                          }
-                                          return Padding(
-                                            padding: const EdgeInsets.only(bottom: 12),
-                                            child: _buildPoliklinikCard(
-                                              icon: iconData,
-                                              title: name,
-                                              currentQueue: currentQueue,
-                                              waitingCount: waitingCount,
-                                            ),
-                                          );
-                                        },
-                                      );
-                                    }).toList(),
-                                  );
-                                },
+                          children: [
+                            if (!hasQueue)
+                              _noQueueCard(context)
+                            else ...[
+                              _queueInfoCard(
+                                poli,
+                                queueNumber,
+                                status,
+                                estimasi,
                               ),
-                              const SizedBox(height: 20),
+                              const SizedBox(height: 16),
+                              _activePoliCard(
+                                currentCallingVal,
+                                queueNumber,
+                                status,
+                              ),
                             ],
-                          ),
+
+                            const SizedBox(height: 32),
+
+                            const Text(
+                              'Poliklinik Tersedia',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            StreamBuilder<
+                              QuerySnapshot<Map<String, dynamic>>
+                            >(
+                              stream: FirebaseFirestore.instance
+                                  .collection('poliklinik')
+                                  .snapshots(),
+                              builder: (context, poliSnapshot) {
+                                if (!poliSnapshot.hasData)
+                                  return const Center(
+                                    child: CircularProgressIndicator(),
+                                  );
+                                return Column(
+                                  children: poliSnapshot.data!.docs.map((
+                                    doc,
+                                  ) {
+                                    final data = doc.data();
+                                    final name =
+                                        data['name']?.toString() ??
+                                        "Poliklinik";
+                                    IconData iconData = Icons.local_hospital;
+                                    if (data['icon'] ==
+                                        'medical_services_outlined')
+                                      iconData =
+                                          Icons.medical_services_outlined;
+                                    else if (data['icon'] == 'child_care' ||
+                                        data['icon'] == 'child_care_outlined')
+                                      iconData = Icons.child_care_outlined;
+                                    else if (data['icon'] ==
+                                        'monitor_heart_outlined')
+                                      iconData = Icons.monitor_heart_outlined;
+                                    else if (data['icon'] ==
+                                        'visibility_outlined')
+                                      iconData = Icons.visibility_outlined;
+
+                                    return StreamBuilder<DatabaseEvent>(
+                                      stream: _firebaseService
+                                          .streamAntreanByPoli(name),
+                                      builder: (context, queueSnapshot) {
+                                        String currentQueue = "-";
+                                        int waitingCount = 0;
+                                        if (queueSnapshot.hasData &&
+                                            queueSnapshot
+                                                    .data!
+                                                    .snapshot
+                                                    .value !=
+                                                null) {
+                                          final allQueues =
+                                              Map<dynamic, dynamic>.from(
+                                                queueSnapshot
+                                                        .data!
+                                                        .snapshot
+                                                        .value
+                                                    as Map,
+                                              );
+                                          for (final entry
+                                              in allQueues.values) {
+                                            try {
+                                              final queue =
+                                                  Map<dynamic, dynamic>.from(
+                                                    entry as Map,
+                                                  );
+                                              final statusValue =
+                                                  queue['status']
+                                                      ?.toString()
+                                                      .toLowerCase() ??
+                                                  "";
+                                              if (statusValue.contains(
+                                                'dipanggil',
+                                              )) {
+                                                final calledNumber =
+                                                    queue['nomorAntrean']
+                                                        ?.toString();
+                                                if (calledNumber != null &&
+                                                    calledNumber.isNotEmpty) {
+                                                  currentQueue = calledNumber;
+                                                  break;
+                                                }
+                                              }
+                                            } catch (_) {}
+                                          }
+
+                                          int totalQueued = 0;
+                                          for (final entry
+                                              in allQueues.values) {
+                                            try {
+                                              final queue =
+                                                  Map<dynamic, dynamic>.from(
+                                                    entry as Map,
+                                                  );
+                                              final queueNum =
+                                                  queue['nomorAntrean']
+                                                      ?.toString() ??
+                                                  "";
+                                              final statusValue =
+                                                  queue['status']
+                                                      ?.toString()
+                                                      .toLowerCase() ??
+                                                  "";
+                                              if (queueNum.isNotEmpty &&
+                                                  !statusValue.contains(
+                                                    'selesai',
+                                                  ) &&
+                                                  !statusValue.contains(
+                                                    'dipanggil',
+                                                  )) {
+                                                totalQueued += 1;
+                                              }
+                                            } catch (_) {}
+                                          }
+                                          waitingCount = totalQueued;
+                                        }
+                                        return Padding(
+                                          padding: const EdgeInsets.only(
+                                            bottom: 12,
+                                          ),
+                                          child: _buildPoliklinikCard(
+                                            icon: iconData,
+                                            title: name,
+                                            currentQueue: currentQueue,
+                                            waitingCount: waitingCount,
+                                          ),
+                                        );
+                                      },
+                                    );
+                                  }).toList(),
+                                );
+                              },
+                            ),
+                            const SizedBox(height: 20),
+                          ],
                         );
                       }
 
@@ -298,15 +473,23 @@ class _AntreanPageState extends State<AntreanPage> {
                             if (samePoliSnapshot.hasData &&
                                 samePoliSnapshot.data!.snapshot.value != null) {
                               final allQueues = Map<dynamic, dynamic>.from(
-                                  samePoliSnapshot.data!.snapshot.value as Map);
+                                samePoliSnapshot.data!.snapshot.value as Map,
+                              );
                               for (final entry in allQueues.values) {
                                 try {
-                                  final queue = Map<dynamic, dynamic>.from(entry as Map);
+                                  final queue = Map<dynamic, dynamic>.from(
+                                    entry as Map,
+                                  );
                                   final statusValue =
-                                      queue['status']?.toString().toLowerCase() ?? "";
+                                      queue['status']
+                                          ?.toString()
+                                          .toLowerCase() ??
+                                      "";
                                   if (statusValue.contains('dipanggil')) {
-                                    final calledNumber = queue['nomorAntrean']?.toString();
-                                    if (calledNumber != null && calledNumber.isNotEmpty) {
+                                    final calledNumber = queue['nomorAntrean']
+                                        ?.toString();
+                                    if (calledNumber != null &&
+                                        calledNumber.isNotEmpty) {
                                       currentCalling = calledNumber;
                                       break;
                                     }
@@ -329,13 +512,21 @@ class _AntreanPageState extends State<AntreanPage> {
           bottomNavigationBar: Container(
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(24),
+              ),
               boxShadow: [
-                BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, -5)),
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.03),
+                  blurRadius: 10,
+                  offset: const Offset(0, -5),
+                ),
               ],
             ),
             child: ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(24),
+              ),
               child: BottomNavigationBar(
                 currentIndex: _selectedIndex,
                 onTap: _onItemTapped,
@@ -344,13 +535,50 @@ class _AntreanPageState extends State<AntreanPage> {
                 elevation: 0,
                 selectedItemColor: const Color(0xFF0052A3),
                 unselectedItemColor: Colors.grey,
-                selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                selectedLabelStyle: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
                 unselectedLabelStyle: const TextStyle(fontSize: 12),
                 items: [
-                  const BottomNavigationBarItem(icon: Padding(padding: EdgeInsets.only(bottom: 4, top: 8), child: Icon(Icons.home_outlined)), label: 'Beranda'),
-                  BottomNavigationBarItem(icon: Container(padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8), margin: const EdgeInsets.only(bottom: 4), decoration: BoxDecoration(color: _selectedIndex == 1 ? Colors.blue.shade50 : Colors.transparent, borderRadius: BorderRadius.circular(20)), child: const Icon(Icons.post_add)), label: 'Antrean'),
-                  const BottomNavigationBarItem(icon: Padding(padding: EdgeInsets.only(bottom: 4, top: 8), child: Icon(Icons.calendar_month_outlined)), label: 'Janji Temu'),
-                  const BottomNavigationBarItem(icon: Padding(padding: EdgeInsets.only(bottom: 4, top: 8), child: Icon(Icons.person_outline)), label: 'Profil'),
+                  const BottomNavigationBarItem(
+                    icon: Padding(
+                      padding: EdgeInsets.only(bottom: 4, top: 8),
+                      child: Icon(Icons.home_outlined),
+                    ),
+                    label: 'Beranda',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 8,
+                      ),
+                      margin: const EdgeInsets.only(bottom: 4),
+                      decoration: BoxDecoration(
+                        color: _selectedIndex == 1
+                            ? Colors.blue.shade50
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Icon(Icons.post_add),
+                    ),
+                    label: 'Antrean',
+                  ),
+                  const BottomNavigationBarItem(
+                    icon: Padding(
+                      padding: EdgeInsets.only(bottom: 4, top: 8),
+                      child: Icon(Icons.calendar_month_outlined),
+                    ),
+                    label: 'Janji Temu',
+                  ),
+                  const BottomNavigationBarItem(
+                    icon: Padding(
+                      padding: EdgeInsets.only(bottom: 4, top: 8),
+                      child: Icon(Icons.person_outline),
+                    ),
+                    label: 'Profil',
+                  ),
                 ],
               ),
             ),
@@ -366,7 +594,9 @@ class _AntreanPageState extends State<AntreanPage> {
     required String currentQueue,
     required int waitingCount,
   }) {
-    Color waitingColor = waitingCount > 0 ? const Color(0xFF0F7A3E) : Colors.black54;
+    Color waitingColor = waitingCount > 0
+        ? const Color(0xFF0F7A3E)
+        : Colors.black54;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -439,51 +669,176 @@ class _AntreanPageState extends State<AntreanPage> {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.grey.shade200),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4)),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
       child: Column(
         children: [
           const Icon(Icons.info_outline, color: Colors.amber, size: 40),
           const SizedBox(height: 12),
-          const Text('Anda belum memiliki nomor antrean hari ini', textAlign: TextAlign.center, style: TextStyle(color: Colors.black87, fontSize: 14, fontWeight: FontWeight.bold)),
+          const Text(
+            'Anda belum memiliki nomor antrean hari ini',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.black87,
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           const SizedBox(height: 16),
           ElevatedButton.icon(
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (c) => const AmbilAntreanPage())),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (c) => const AmbilAntreanPage()),
+            ),
             icon: const Icon(Icons.add, color: Colors.white, size: 18),
-            label: const Text('Ambil Antrean', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0052A3), elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+            label: const Text(
+              'Ambil Antrean',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF0052A3),
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _queueInfoCard(String poli, String queueNumber, String status, int estimasi) {
+  Widget _queueInfoCard(
+    String poli,
+    String queueNumber,
+    String status,
+    int estimasi,
+  ) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.grey.shade200), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))]),
-      child: Column(children: [
-        Text(poli, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
-        const SizedBox(height: 4),
-        const Text('Nomor Antrean Anda', style: TextStyle(color: Colors.black54, fontSize: 14)),
-        const SizedBox(height: 12),
-        Text(queueNumber, style: const TextStyle(fontSize: 64, fontWeight: FontWeight.w900, color: Color(0xFF0052A3), height: 1.1)),
-        const SizedBox(height: 16),
-        Container(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6), decoration: BoxDecoration(color: Colors.greenAccent.shade200, borderRadius: BorderRadius.circular(20)), child: Row(mainAxisSize: MainAxisSize.min, children: [const Icon(Icons.check_circle_outline, color: Colors.green, size: 16), const SizedBox(width: 6), Text(status, style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 13))])),
-        const SizedBox(height: 24),
-        Container(width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 16), decoration: BoxDecoration(color: const Color(0xFFF5F5F5), borderRadius: BorderRadius.circular(12)), child: Column(children: [const Text('ESTIMASI WAKTU', style: TextStyle(color: Colors.black54, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.2)), const SizedBox(height: 8), Text('$estimasi Menit', style: const TextStyle(color: Colors.black87, fontSize: 24, fontWeight: FontWeight.w900))])),
-      ]),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Text(
+            poli,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Nomor Antrean Anda',
+            style: TextStyle(color: Colors.black54, fontSize: 14),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            queueNumber,
+            style: const TextStyle(
+              fontSize: 64,
+              fontWeight: FontWeight.w900,
+              color: Color(0xFF0052A3),
+              height: 1.1,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.greenAccent.shade200,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.check_circle_outline,
+                  color: Colors.green,
+                  size: 16,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  status,
+                  style: const TextStyle(
+                    color: Colors.green,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF5F5F5),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              children: [
+                const Text(
+                  'ESTIMASI WAKTU',
+                  style: TextStyle(
+                    color: Colors.black54,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '$estimasi Menit',
+                  style: const TextStyle(
+                    color: Colors.black87,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _activePoliCard(String currentCalling, String queueNumber, String status) {
+  Widget _activePoliCard(
+    String currentCalling,
+    String queueNumber,
+    String status,
+  ) {
     double progressVal = 0.0;
 
-    if (queueNumber.isNotEmpty && currentCalling.isNotEmpty && currentCalling != "-") {
-      final myNum = int.tryParse(queueNumber.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
-      final currentNum = int.tryParse(currentCalling.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+    if (queueNumber.isNotEmpty &&
+        currentCalling.isNotEmpty &&
+        currentCalling != "-") {
+      final myNum =
+          int.tryParse(queueNumber.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+      final currentNum =
+          int.tryParse(currentCalling.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
       if (myNum > 0) {
         progressVal = (currentNum / myNum).clamp(0.0, 1.0);
       }
@@ -498,21 +853,48 @@ class _AntreanPageState extends State<AntreanPage> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Antrean aktif di poli', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold, fontSize: 14)),
+              const Text(
+                'Antrean aktif di poli',
+                style: TextStyle(
+                  color: Colors.black87,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text('$currentCalling sedang', style: const TextStyle(color: Color(0xFF0052A3), fontWeight: FontWeight.bold, fontSize: 14)),
-                  const Text('dilayani', style: TextStyle(color: Color(0xFF0052A3), fontWeight: FontWeight.bold, fontSize: 14)),
+                  Text(
+                    '$currentCalling sedang',
+                    style: const TextStyle(
+                      color: Color(0xFF0052A3),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const Text(
+                    'dilayani',
+                    style: TextStyle(
+                      color: Color(0xFF0052A3),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
                 ],
-              )
+              ),
             ],
           ),
           const SizedBox(height: 16),
@@ -521,7 +903,9 @@ class _AntreanPageState extends State<AntreanPage> {
             child: LinearProgressIndicator(
               value: progressVal,
               backgroundColor: Colors.grey.shade300,
-              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF0052A3)),
+              valueColor: const AlwaysStoppedAnimation<Color>(
+                Color(0xFF0052A3),
+              ),
               minHeight: 12,
             ),
           ),

@@ -8,6 +8,7 @@ import 'janji_temu_page.dart';
 import 'antrean_page.dart';
 import 'riwayat_pengecekan_page.dart';
 import 'services/firebase_service.dart';
+import 'services/audio_service.dart';
 import 'utils/image_helper.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -20,10 +21,11 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
-  int _selectedAppointmentIndex = 0; // Melacak janji temu yang dipilih di dropdown
+  int _selectedAppointmentIndex = 0;
   Offset _chatButtonOffset = const Offset(20, 520);
 
   final FirebaseService _firebaseService = FirebaseService();
+  final AudioService _audioService = AudioService();
   String get _uid => FirebaseAuth.instance.currentUser?.uid ?? "";
 
   String _extractQueueKeyFromQueueNumber(String queueNumber) {
@@ -45,7 +47,8 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _launchWhatsApp(String userName) async {
-    final String message = 'Halo, nama saya $userName. Saya ingin memulai sesi konsultasi kesehatan dari AntreYuk.';
+    final String message =
+        'Halo, nama saya $userName. Saya ingin memulai sesi konsultasi kesehatan dari AntreYuk.';
     final String encodedMessage = Uri.encodeComponent(message);
     final uri = Uri.parse('https://wa.me/6283898875093?text=$encodedMessage');
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
@@ -98,17 +101,27 @@ class _HomePageState extends State<HomePage> {
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const ProfilePage()),
+                      MaterialPageRoute(
+                        builder: (context) => const ProfilePage(),
+                      ),
                     );
                   },
                   child: CircleAvatar(
                     radius: 18,
                     backgroundColor: const Color(0xFFE6F0FF),
-                    backgroundImage: userPhoto != null ? ImageHelper.getImageProvider(userPhoto) : null,
-                    child: userPhoto == null ? const Icon(Icons.person, color: Color(0xFF0052A3), size: 20) : null,
+                    backgroundImage: userPhoto != null
+                        ? ImageHelper.getImageProvider(userPhoto)
+                        : null,
+                    child: userPhoto == null
+                        ? const Icon(
+                            Icons.person,
+                            color: Color(0xFF0052A3),
+                            size: 20,
+                          )
+                        : null,
                   ),
                 ),
-              )
+              ),
             ],
           ),
           body: Stack(
@@ -145,11 +158,16 @@ class _HomePageState extends State<HomePage> {
                         if (activeQueueSnapshot.hasData &&
                             activeQueueSnapshot.data!.snapshot.value != null) {
                           final data = Map<dynamic, dynamic>.from(
-                              activeQueueSnapshot.data!.snapshot.value as Map);
+                            activeQueueSnapshot.data!.snapshot.value as Map,
+                          );
                           queueNumber = data['queue_number']?.toString() ?? "";
                           queueKey = data['queue_key']?.toString() ?? "";
                           poli = data['poli']?.toString() ?? "";
-                          estimasi = int.tryParse(data['estimasi_menit']?.toString() ?? "0") ?? 0;
+                          estimasi =
+                              int.tryParse(
+                                data['estimasi_menit']?.toString() ?? "0",
+                              ) ??
+                              0;
                           if (queueNumber.isNotEmpty) {
                             hasQueue = true;
                           }
@@ -173,7 +191,11 @@ class _HomePageState extends State<HomePage> {
                             ),
                             child: Column(
                               children: [
-                                const Icon(Icons.info_outline, color: Colors.amber, size: 40),
+                                const Icon(
+                                  Icons.info_outline,
+                                  color: Colors.amber,
+                                  size: 40,
+                                ),
                                 const SizedBox(height: 12),
                                 const Text(
                                   'Anda belum memiliki nomor antrean hari ini',
@@ -190,13 +212,22 @@ class _HomePageState extends State<HomePage> {
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(
-                                          builder: (context) => const AmbilAntreanPage()),
+                                        builder: (context) =>
+                                            const AmbilAntreanPage(),
+                                      ),
                                     );
                                   },
-                                  icon: const Icon(Icons.add, color: Colors.white, size: 18),
+                                  icon: const Icon(
+                                    Icons.add,
+                                    color: Colors.white,
+                                    size: 18,
+                                  ),
                                   label: const Text(
                                     'Ambil Antrean',
-                                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: const Color(0xFF0052A3),
@@ -217,38 +248,152 @@ class _HomePageState extends State<HomePage> {
 
                         return StreamBuilder<DatabaseEvent>(
                           stream: effectiveQueueKey.isNotEmpty
-                              ? _firebaseService.streamQueueDataByKey(effectiveQueueKey)
+                              ? _firebaseService.streamQueueDataByKey(
+                                  effectiveQueueKey,
+                                )
                               : Stream<DatabaseEvent>.empty(),
                           builder: (context, queueDetailSnapshot) {
                             String queueStatus = "";
                             if (queueDetailSnapshot.hasData &&
-                                queueDetailSnapshot.data!.snapshot.value != null) {
+                                queueDetailSnapshot.data!.snapshot.value !=
+                                    null) {
                               final queueData = Map<dynamic, dynamic>.from(
-                                  queueDetailSnapshot.data!.snapshot.value as Map);
-                              queueNumber = queueData['nomorAntrean']?.toString() ?? queueNumber;
-                              poli = queueData['poliTujuan']?.toString() ?? poli;
-                              estimasi = int.tryParse(
-                                      queueData['estimasiMenit']?.toString() ??
-                                          queueData['estimasi_menit']?.toString() ??
-                                          estimasi.toString()) ??
+                                queueDetailSnapshot.data!.snapshot.value as Map,
+                              );
+                              queueNumber =
+                                  queueData['nomorAntrean']?.toString() ??
+                                  queueNumber;
+                              poli =
+                                  queueData['poliTujuan']?.toString() ?? poli;
+                              estimasi =
+                                  int.tryParse(
+                                    queueData['estimasiMenit']?.toString() ??
+                                        queueData['estimasi_menit']
+                                            ?.toString() ??
+                                        estimasi.toString(),
+                                  ) ??
                                   estimasi;
-                              queueStatus = queueData['status']?.toString() ?? queueStatus;
+                              queueStatus =
+                                  queueData['status']?.toString() ??
+                                  queueStatus;
                             }
 
                             final String dbPoliKey = _getPoliKeyFromName(poli);
 
+                            // Trigger audio notification ketika status berubah menjadi 'dipanggil'
+                            final queueStatusLower = queueStatus.toLowerCase();
+                            final queueIdentifier = effectiveQueueKey.isNotEmpty
+                                ? effectiveQueueKey
+                                : queueNumber.isNotEmpty
+                                    ? queueNumber
+                                    : 'unknown_queue';
+
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              if (mounted) {
+                                _audioService.handleQueueStatus(queueIdentifier, queueStatusLower);
+                              }
+                            });
+
+                            // Jika status antrean adalah 'selesai', anggap pengguna tidak memiliki antrean aktif
+                            if (queueStatusLower.contains('selesai')) {
+                              _audioService.clearLastCalledNotification(queueIdentifier);
+                              return Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(24),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: Colors.grey.shade200,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.02),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: Column(
+                                  children: [
+                                    const Icon(
+                                      Icons.info_outline,
+                                      color: Colors.amber,
+                                      size: 40,
+                                    ),
+                                    const SizedBox(height: 12),
+                                    const Text(
+                                      'Anda belum memiliki nomor antrean hari ini',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        color: Colors.black87,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    ElevatedButton.icon(
+                                      onPressed: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                const AmbilAntreanPage(),
+                                          ),
+                                        );
+                                      },
+                                      icon: const Icon(
+                                        Icons.add,
+                                        color: Colors.white,
+                                        size: 18,
+                                      ),
+                                      label: const Text(
+                                        'Ambil Antrean',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(
+                                          0xFF0052A3,
+                                        ),
+                                        elevation: 0,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }
+
                             return StreamBuilder<DatabaseEvent>(
-                              stream: _firebaseService.streamCurrentQueue(dbPoliKey),
+                              stream: _firebaseService.streamCurrentQueue(
+                                dbPoliKey,
+                              ),
                               builder: (context, currentPoliQueueSnapshot) {
                                 String currentCalling = "-";
                                 if (currentPoliQueueSnapshot.hasData &&
-                                    currentPoliQueueSnapshot.data!.snapshot.value != null) {
-                                  currentCalling =
-                                      currentPoliQueueSnapshot.data!.snapshot.value.toString();
+                                    currentPoliQueueSnapshot
+                                            .data!
+                                            .snapshot
+                                            .value !=
+                                        null) {
+                                  currentCalling = currentPoliQueueSnapshot
+                                      .data!
+                                      .snapshot
+                                      .value
+                                      .toString();
                                 }
 
                                 if (currentCalling == "-" &&
-                                    queueStatus.toLowerCase().contains('dipanggil')) {
+                                    queueStatus.toLowerCase().contains(
+                                      'dipanggil',
+                                    )) {
                                   currentCalling = queueNumber;
                                 }
 
@@ -258,10 +403,15 @@ class _HomePageState extends State<HomePage> {
                                       Navigator.pushReplacement(
                                         context,
                                         PageRouteBuilder(
-                                          pageBuilder: (context, animation1, animation2) =>
-                                              const AntreanPage(),
+                                          pageBuilder:
+                                              (
+                                                context,
+                                                animation1,
+                                                animation2,
+                                              ) => const AntreanPage(),
                                           transitionDuration: Duration.zero,
-                                          reverseTransitionDuration: Duration.zero,
+                                          reverseTransitionDuration:
+                                              Duration.zero,
                                         ),
                                       );
                                     },
@@ -270,7 +420,9 @@ class _HomePageState extends State<HomePage> {
                                         borderRadius: BorderRadius.circular(16),
                                         boxShadow: [
                                           BoxShadow(
-                                            color: Colors.black.withOpacity(0.05),
+                                            color: Colors.black.withOpacity(
+                                              0.05,
+                                            ),
                                             blurRadius: 10,
                                             offset: const Offset(0, 4),
                                           ),
@@ -280,18 +432,24 @@ class _HomePageState extends State<HomePage> {
                                         children: [
                                           Container(
                                             width: double.infinity,
-                                            padding: const EdgeInsets.symmetric(vertical: 24),
+                                            padding: const EdgeInsets.symmetric(
+                                              vertical: 24,
+                                            ),
                                             decoration: const BoxDecoration(
                                               color: Color(0xFF0052A3),
                                               borderRadius:
-                                                  BorderRadius.vertical(top: Radius.circular(16)),
+                                                  BorderRadius.vertical(
+                                                    top: Radius.circular(16),
+                                                  ),
                                             ),
                                             child: Column(
                                               children: [
                                                 const Text(
                                                   'Nomor Antrean Anda',
                                                   style: TextStyle(
-                                                      color: Colors.white, fontSize: 14),
+                                                    color: Colors.white,
+                                                    fontSize: 14,
+                                                  ),
                                                 ),
                                                 const SizedBox(height: 8),
                                                 Text(
@@ -304,26 +462,39 @@ class _HomePageState extends State<HomePage> {
                                                 ),
                                                 const SizedBox(height: 12),
                                                 Container(
-                                                  padding: const EdgeInsets.symmetric(
-                                                      horizontal: 16, vertical: 8),
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 16,
+                                                        vertical: 8,
+                                                      ),
                                                   decoration: BoxDecoration(
-                                                    color: const Color(0xFF0F7A3E),
-                                                    borderRadius: BorderRadius.circular(20),
+                                                    color: const Color(
+                                                      0xFF0F7A3E,
+                                                    ),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          20,
+                                                        ),
                                                   ),
                                                   child: Row(
-                                                    mainAxisSize: MainAxisSize.min,
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
                                                     children: [
                                                       const Icon(
-                                                          Icons.notifications_active_outlined,
-                                                          color: Colors.white,
-                                                          size: 16),
+                                                        Icons
+                                                            .notifications_active_outlined,
+                                                        color: Colors.white,
+                                                        size: 16,
+                                                      ),
                                                       const SizedBox(width: 8),
                                                       Text(
                                                         'Estimasi Waktu: $estimasi Menit',
                                                         style: const TextStyle(
-                                                            color: Colors.white,
-                                                            fontSize: 13,
-                                                            fontWeight: FontWeight.bold),
+                                                          color: Colors.white,
+                                                          fontSize: 13,
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                        ),
                                                       ),
                                                     ],
                                                   ),
@@ -333,19 +504,27 @@ class _HomePageState extends State<HomePage> {
                                           ),
                                           Container(
                                             width: double.infinity,
-                                            padding: const EdgeInsets.symmetric(vertical: 20),
+                                            padding: const EdgeInsets.symmetric(
+                                              vertical: 20,
+                                            ),
                                             decoration: BoxDecoration(
                                               color: Colors.white,
-                                              borderRadius: const BorderRadius.vertical(
-                                                  bottom: Radius.circular(16)),
-                                              border: Border.all(color: Colors.grey.shade200),
+                                              borderRadius:
+                                                  const BorderRadius.vertical(
+                                                    bottom: Radius.circular(16),
+                                                  ),
+                                              border: Border.all(
+                                                color: Colors.grey.shade200,
+                                              ),
                                             ),
                                             child: Column(
                                               children: [
                                                 Text(
                                                   'Sedang Dipanggil ($poli)',
                                                   style: const TextStyle(
-                                                      color: Colors.black54, fontSize: 15),
+                                                    color: Colors.black54,
+                                                    fontSize: 15,
+                                                  ),
                                                 ),
                                                 const SizedBox(height: 8),
                                                 Text(
@@ -367,21 +546,42 @@ class _HomePageState extends State<HomePage> {
 
                                 if (currentCalling == "-" && poli.isNotEmpty) {
                                   return StreamBuilder<DatabaseEvent>(
-                                    stream: _firebaseService.streamAntreanByPoli(poli),
+                                    stream: _firebaseService
+                                        .streamAntreanByPoli(poli),
                                     builder: (context, samePoliSnapshot) {
                                       if (samePoliSnapshot.hasData &&
-                                          samePoliSnapshot.data!.snapshot.value != null) {
-                                        final allQueues = Map<dynamic, dynamic>.from(
-                                            samePoliSnapshot.data!.snapshot.value as Map);
+                                          samePoliSnapshot
+                                                  .data!
+                                                  .snapshot
+                                                  .value !=
+                                              null) {
+                                        final allQueues =
+                                            Map<dynamic, dynamic>.from(
+                                              samePoliSnapshot
+                                                      .data!
+                                                      .snapshot
+                                                      .value
+                                                  as Map,
+                                            );
                                         for (final entry in allQueues.values) {
                                           try {
-                                            final queue = Map<dynamic, dynamic>.from(entry as Map);
+                                            final queue =
+                                                Map<dynamic, dynamic>.from(
+                                                  entry as Map,
+                                                );
                                             final statusValue =
-                                                queue['status']?.toString().toLowerCase() ?? "";
-                                            if (statusValue.contains('dipanggil')) {
+                                                queue['status']
+                                                    ?.toString()
+                                                    .toLowerCase() ??
+                                                "";
+                                            if (statusValue.contains(
+                                              'dipanggil',
+                                            )) {
                                               final calledNumber =
-                                                  queue['nomorAntrean']?.toString();
-                                              if (calledNumber != null && calledNumber.isNotEmpty) {
+                                                  queue['nomorAntrean']
+                                                      ?.toString();
+                                              if (calledNumber != null &&
+                                                  calledNumber.isNotEmpty) {
                                                 currentCalling = calledNumber;
                                                 break;
                                               }
@@ -405,12 +605,44 @@ class _HomePageState extends State<HomePage> {
                     const SizedBox(height: 24),
 
                     StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                      stream: _firebaseService.streamAppointments(_uid),
+                      stream: _firebaseService.streamUserAppointments(_uid),
                       builder: (context, appointmentSnapshot) {
+                        // Debug: Tampilkan error jika ada
+                        if (appointmentSnapshot.hasError) {
+                          return SizedBox(
+                            child: Text(
+                              'Error loading appointments: ${appointmentSnapshot.error}',
+                              style: const TextStyle(color: Colors.red),
+                            ),
+                          );
+                        }
+
+                        // Tampilkan loading jika masih waiting
+                        if (appointmentSnapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const Center(
+                            child: CircularProgressIndicator(),
+                          );
+                        }
+
                         if (appointmentSnapshot.hasData &&
                             appointmentSnapshot.data!.docs.isNotEmpty) {
-                          
-                          final List<QueryDocumentSnapshot<Map<String, dynamic>>> docs = appointmentSnapshot.data!.docs.toList();
+                          final List<
+                            QueryDocumentSnapshot<Map<String, dynamic>>
+                          >
+                          docs = appointmentSnapshot.data!.docs.where((doc) {
+                            final status =
+                                doc
+                                    .data()['status']
+                                    ?.toString()
+                                    .toLowerCase() ??
+                                '';
+                            return !status.contains('selesai');
+                          }).toList();
+
+                          if (docs.isEmpty) {
+                            return const SizedBox.shrink();
+                          }
 
                           // Sort di memori agar jadwal paling dekat muncul pertama
                           docs.sort((a, b) {
@@ -427,30 +659,43 @@ class _HomePageState extends State<HomePage> {
                             _selectedAppointmentIndex = 0;
                           }
 
-                          final appointmentDoc = docs[_selectedAppointmentIndex].data();
-                          final String appointmentPoli = appointmentDoc['poli']?.toString() ?? "";
-                          final String appointmentDoctor = appointmentDoc['doctorName']?.toString() ?? "";
-                          final String appointmentDate = appointmentDoc['date']?.toString() ?? "";
-                          final String appointmentTime = appointmentDoc['time']?.toString() ?? "";
+                          final appointmentDoc = docs[_selectedAppointmentIndex]
+                              .data();
+                          final String appointmentPoli =
+                              appointmentDoc['poli']?.toString() ?? "";
+                          final String appointmentDoctor =
+                              appointmentDoc['doctorName']?.toString() ?? "";
+                          final String appointmentDate =
+                              appointmentDoc['date']?.toString() ?? "";
+                          final String appointmentTime =
+                              appointmentDoc['time']?.toString() ?? "";
 
                           return Container(
                             padding: const EdgeInsets.all(20),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFFFECE0), // Light peach color
+                              color: const Color(
+                                0xFFFFECE0,
+                              ), // Light peach color
                               borderRadius: BorderRadius.circular(16),
                               border: Border.all(
-                                  color: const Color(0xFFC78D6B), width: 1.0),
+                                color: const Color(0xFFC78D6B),
+                                width: 1.0,
+                              ),
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     const Expanded(
                                       child: Row(
                                         children: [
-                                          Icon(Icons.edit_calendar, color: Color(0xFF3E1F11)),
+                                          Icon(
+                                            Icons.edit_calendar,
+                                            color: Color(0xFF3E1F11),
+                                          ),
                                           SizedBox(width: 8),
                                           Text(
                                             'Janji Temu',
@@ -466,34 +711,61 @@ class _HomePageState extends State<HomePage> {
                                     // Dropdown jika ada lebih dari 1 janji temu
                                     if (docs.length > 1)
                                       Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                        ),
                                         decoration: BoxDecoration(
                                           color: Colors.white.withOpacity(0.6),
-                                          borderRadius: BorderRadius.circular(12),
-                                          border: Border.all(color: const Color(0xFFC78D6B).withOpacity(0.5)),
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                          border: Border.all(
+                                            color: const Color(
+                                              0xFFC78D6B,
+                                            ).withOpacity(0.5),
+                                          ),
                                         ),
                                         child: DropdownButtonHideUnderline(
                                           child: DropdownButton<int>(
                                             value: _selectedAppointmentIndex,
-                                            icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF3E1F11)),
-                                            dropdownColor: const Color(0xFFFFECE0),
-                                            items: List.generate(docs.length, (index) {
+                                            icon: const Icon(
+                                              Icons.arrow_drop_down,
+                                              color: Color(0xFF3E1F11),
+                                            ),
+                                            dropdownColor: const Color(
+                                              0xFFFFECE0,
+                                            ),
+                                            items: List.generate(docs.length, (
+                                              index,
+                                            ) {
                                               final d = docs[index].data();
                                               // Ambil tanggal singkat saja untuk dropdown item
-                                              String dateStr = d['date'].toString();
-                                              String shortDate = dateStr.contains(',') ? dateStr.split(',').last.trim() : dateStr;
+                                              String dateStr = d['date']
+                                                  .toString();
+                                              String shortDate =
+                                                  dateStr.contains(',')
+                                                  ? dateStr
+                                                        .split(',')
+                                                        .last
+                                                        .trim()
+                                                  : dateStr;
                                               return DropdownMenuItem(
                                                 value: index,
                                                 child: Text(
                                                   "${d['poli']} ($shortDate)",
-                                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF3E1F11)),
+                                                  style: const TextStyle(
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Color(0xFF3E1F11),
+                                                  ),
                                                 ),
                                               );
                                             }),
                                             onChanged: (val) {
                                               if (val != null) {
                                                 setState(() {
-                                                  _selectedAppointmentIndex = val;
+                                                  _selectedAppointmentIndex =
+                                                      val;
                                                 });
                                               }
                                             },
@@ -507,35 +779,49 @@ class _HomePageState extends State<HomePage> {
                                   children: [
                                     Expanded(
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
-                                          const Text('POLI',
-                                              style: TextStyle(
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: Color(0xFF8B5A44))),
+                                          const Text(
+                                            'POLI',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.bold,
+                                              color: Color(0xFF8B5A44),
+                                            ),
+                                          ),
                                           const SizedBox(height: 4),
-                                          Text(appointmentPoli,
-                                              style: const TextStyle(
-                                                  fontSize: 15,
-                                                  color: Color(0xFF3E1F11))),
+                                          Text(
+                                            appointmentPoli,
+                                            style: const TextStyle(
+                                              fontSize: 15,
+                                              color: Color(0xFF3E1F11),
+                                            ),
+                                          ),
                                         ],
                                       ),
                                     ),
                                     Expanded(
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
-                                          const Text('TANGGAL',
-                                              style: TextStyle(
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: Color(0xFF8B5A44))),
+                                          const Text(
+                                            'TANGGAL',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.bold,
+                                              color: Color(0xFF8B5A44),
+                                            ),
+                                          ),
                                           const SizedBox(height: 4),
-                                          Text(appointmentDate,
-                                              style: const TextStyle(
-                                                  fontSize: 15,
-                                                  color: Color(0xFF3E1F11))),
+                                          Text(
+                                            appointmentDate,
+                                            style: const TextStyle(
+                                              fontSize: 15,
+                                              color: Color(0xFF3E1F11),
+                                            ),
+                                          ),
                                         ],
                                       ),
                                     ),
@@ -546,35 +832,49 @@ class _HomePageState extends State<HomePage> {
                                   children: [
                                     Expanded(
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
-                                          const Text('JAM',
-                                              style: TextStyle(
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: Color(0xFF8B5A44))),
+                                          const Text(
+                                            'JAM',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.bold,
+                                              color: Color(0xFF8B5A44),
+                                            ),
+                                          ),
                                           const SizedBox(height: 4),
-                                          Text(appointmentTime,
-                                              style: const TextStyle(
-                                                  fontSize: 15,
-                                                  color: Color(0xFF3E1F11))),
+                                          Text(
+                                            appointmentTime,
+                                            style: const TextStyle(
+                                              fontSize: 15,
+                                              color: Color(0xFF3E1F11),
+                                            ),
+                                          ),
                                         ],
                                       ),
                                     ),
                                     Expanded(
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
-                                          const Text('DOKTER',
-                                              style: TextStyle(
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: Color(0xFF8B5A44))),
+                                          const Text(
+                                            'DOKTER',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.bold,
+                                              color: Color(0xFF8B5A44),
+                                            ),
+                                          ),
                                           const SizedBox(height: 4),
-                                          Text(appointmentDoctor,
-                                              style: const TextStyle(
-                                                  fontSize: 15,
-                                                  color: Color(0xFF3E1F11))),
+                                          Text(
+                                            appointmentDoctor,
+                                            style: const TextStyle(
+                                              fontSize: 15,
+                                              color: Color(0xFF3E1F11),
+                                            ),
+                                          ),
                                         ],
                                       ),
                                     ),
@@ -594,12 +894,17 @@ class _HomePageState extends State<HomePage> {
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (context) => const AmbilAntreanPage()),
+                          MaterialPageRoute(
+                            builder: (context) => const AmbilAntreanPage(),
+                          ),
                         );
                       },
                       child: Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 20,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(0xFF003B73),
                           borderRadius: BorderRadius.circular(16),
@@ -612,7 +917,10 @@ class _HomePageState extends State<HomePage> {
                                 color: Colors.white.withOpacity(0.2),
                                 shape: BoxShape.circle,
                               ),
-                              child: const Icon(Icons.post_add, color: Colors.white),
+                              child: const Icon(
+                                Icons.post_add,
+                                color: Colors.white,
+                              ),
                             ),
                             const SizedBox(width: 16),
                             const Expanded(
@@ -638,7 +946,11 @@ class _HomePageState extends State<HomePage> {
                                 ],
                               ),
                             ),
-                            const Icon(Icons.chevron_right, color: Colors.white, size: 28),
+                            const Icon(
+                              Icons.chevron_right,
+                              color: Colors.white,
+                              size: 28,
+                            ),
                           ],
                         ),
                       ),
@@ -654,7 +966,9 @@ class _HomePageState extends State<HomePage> {
                               Navigator.pushReplacement(
                                 context,
                                 PageRouteBuilder(
-                                  pageBuilder: (context, animation1, animation2) => const JanjiTemuPage(),
+                                  pageBuilder:
+                                      (context, animation1, animation2) =>
+                                          const JanjiTemuPage(),
                                   transitionDuration: Duration.zero,
                                   reverseTransitionDuration: Duration.zero,
                                 ),
@@ -675,7 +989,10 @@ class _HomePageState extends State<HomePage> {
                             onTap: () {
                               Navigator.push(
                                 context,
-                                MaterialPageRoute(builder: (context) => const RiwayatPengecekanPage()),
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      const RiwayatPengecekanPage(),
+                                ),
                               );
                             },
                             child: _buildActionCard(
@@ -709,7 +1026,8 @@ class _HomePageState extends State<HomePage> {
                   },
                   onPanEnd: (details) {
                     final screenSize = MediaQuery.of(context).size;
-                    final snapX = _chatButtonOffset.dx + 35 >= screenSize.width / 2
+                    final snapX =
+                        _chatButtonOffset.dx + 35 >= screenSize.width / 2
                         ? screenSize.width - 70.0
                         : 0.0;
                     setState(() {
@@ -743,7 +1061,9 @@ class _HomePageState extends State<HomePage> {
           bottomNavigationBar: Container(
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(24),
+              ),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.03),
@@ -753,7 +1073,9 @@ class _HomePageState extends State<HomePage> {
               ],
             ),
             child: ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(24),
+              ),
               child: BottomNavigationBar(
                 currentIndex: _selectedIndex,
                 onTap: (index) {
@@ -761,7 +1083,8 @@ class _HomePageState extends State<HomePage> {
                     Navigator.pushReplacement(
                       context,
                       PageRouteBuilder(
-                        pageBuilder: (context, animation1, animation2) => const AntreanPage(),
+                        pageBuilder: (context, animation1, animation2) =>
+                            const AntreanPage(),
                         transitionDuration: Duration.zero,
                         reverseTransitionDuration: Duration.zero,
                       ),
@@ -770,7 +1093,8 @@ class _HomePageState extends State<HomePage> {
                     Navigator.pushReplacement(
                       context,
                       PageRouteBuilder(
-                        pageBuilder: (context, animation1, animation2) => const JanjiTemuPage(),
+                        pageBuilder: (context, animation1, animation2) =>
+                            const JanjiTemuPage(),
                         transitionDuration: Duration.zero,
                         reverseTransitionDuration: Duration.zero,
                       ),
@@ -779,7 +1103,8 @@ class _HomePageState extends State<HomePage> {
                     Navigator.pushReplacement(
                       context,
                       PageRouteBuilder(
-                        pageBuilder: (context, animation1, animation2) => const ProfilePage(),
+                        pageBuilder: (context, animation1, animation2) =>
+                            const ProfilePage(),
                         transitionDuration: Duration.zero,
                         reverseTransitionDuration: Duration.zero,
                       ),
@@ -795,15 +1120,23 @@ class _HomePageState extends State<HomePage> {
                 elevation: 0,
                 selectedItemColor: const Color(0xFF0052A3),
                 unselectedItemColor: Colors.grey,
-                selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                selectedLabelStyle: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
                 unselectedLabelStyle: const TextStyle(fontSize: 12),
                 items: [
                   BottomNavigationBarItem(
                     icon: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 8,
+                      ),
                       margin: const EdgeInsets.only(bottom: 4),
                       decoration: BoxDecoration(
-                        color: _selectedIndex == 0 ? Colors.blue.shade50 : Colors.transparent,
+                        color: _selectedIndex == 0
+                            ? Colors.blue.shade50
+                            : Colors.transparent,
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: const Icon(Icons.home_filled),

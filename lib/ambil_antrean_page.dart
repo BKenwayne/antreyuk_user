@@ -120,15 +120,25 @@ class _AmbilAntreanPageState extends State<AmbilAntreanPage> {
       String queueNumberStr = await _firebaseService.takeNewQueue(poliKey);
       String queueNum = "$prefix-$queueNumberStr";
 
+      // Buat nomor rekam medis unik secara otomatis
+      final noRekamMedis = await _firebaseService.generateUniqueMedicalRecordNumber();
+
       // Buat entry antrean baru dengan struktur baru
       final queueKey = await _firebaseService.createNewQueue(
         nomorAntrean: queueNum,
         poliTujuan: selectedPoli!,
         namaPasien: _namaController.text,
-        noRekamMedis: _nikController.text, // Menggunakan NIK sebagai nomor rekam medis
+        noRekamMedis: noRekamMedis,
         keluhanAwal: _keluhanController.text,
         estimasiMenit: 25,
       );
+
+      // Simpan nomor rekam medis terakhir ke profile user untuk fallback history
+      await _firebaseService.saveUserProfile(_uid, {
+        'lastNoRekamMedis': noRekamMedis,
+        'nik': _nikController.text,
+        'name': _namaController.text,
+      });
 
       // Set antrean aktif untuk user (untuk tracking realtime)
       await _firebaseService.setUserActiveQueue(_uid, {
@@ -139,7 +149,7 @@ class _AmbilAntreanPageState extends State<AmbilAntreanPage> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Berhasil mengambil antrean: $queueNum"), backgroundColor: Colors.green),
+          SnackBar(content: Text("Berhasil mengambil antrean: $queueNum. No Rekam Medis: $noRekamMedis"), backgroundColor: Colors.green),
         );
         Navigator.pushReplacement(
           context,
@@ -294,7 +304,7 @@ class _AmbilAntreanPageState extends State<AmbilAntreanPage> {
                       ),
                       const SizedBox(height: 6),
                       const Text(
-                        'Pastikan 16 digit NIK sesuai dengan KTP Anda.',
+                        'Pastikan 16 digit NIK sesuai dengan KTP Anda. Nomor rekam medis akan dibuat otomatis.',
                         style: TextStyle(color: Colors.black54, fontSize: 12),
                       ),
                       
